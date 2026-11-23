@@ -103,23 +103,350 @@ flowchart LR
 
 ---
 
-## API Endpoints
+## API Endpoints (Request & Response)
 
-| Method | Endpoint | Fungsi |
-|---|---|---|
-| `GET` | `/` atau `/dashboard` | Halaman dashboard single-page |
-| `GET` | `/health` | Status WhatsApp & koneksi 9router |
-| `GET` | `/api/products` | Daftar produk dari SQLite |
-| `POST` | `/api/products` | Tambah produk baru |
-| `PUT` | `/api/products/:id` | Update data produk |
-| `PATCH` | `/api/products/:id/stock` | Ubah stok cepat (`delta` / `stock`) |
-| `DELETE` | `/api/products/:id` | Hapus produk |
-| `POST` | `/api/upload` | Upload gambar produk |
-| `GET` | `/api/cod` | Daftar jadwal COD (STK) |
-| `POST` | `/api/cod` | Catat jadwal COD baru |
-| `PATCH` | `/api/cod/:id/status` | Ubah status COD (`menunggu` / `selesai` / `batal`) |
-| `POST` | `/test-chat` | Simulasi chat CS AI |
-| `GET` | `/logs?type=error` | Lihat log harian |
+Base URL lokal: `http://localhost:3001` (atau `http://<IP-LAN-Laptop>:3001` dari HP dalam 1 jaringan WiFi).
+
+### 1. Dashboard & Health
+
+#### `GET /` atau `GET /dashboard`
+Menampilkan halaman dashboard single-page (`public/dashboard.html`).
+
+#### `GET /health`
+Mengecek status koneksi WhatsApp dan 9router.
+
+**Response (`200 OK`):**
+```json
+{
+  "status": "ok",
+  "whatsapp": "ready",
+  "model": "CS",
+  "router": {
+    "ok": true,
+    "status": 200
+  }
+}
+```
+
+---
+
+### 2. Katalog Produk (SQLite)
+
+#### `GET /api/products`
+Mengambil seluruh daftar produk dari `data/catalog.db`.
+
+**Response (`200 OK`):**
+```json
+{
+  "ok": true,
+  "products": [
+    {
+      "id": 2,
+      "name": "Plug and Play by Classic Project",
+      "category": "Konsol",
+      "variant": "250 GB",
+      "price": 300000,
+      "stock": 5,
+      "is_active": 1,
+      "image_url": "/uploads/prod-17323456.jpg",
+      "notes": "Paket termurah yang tersedia",
+      "updated_at": "2026-11-23T07:00:00.000Z"
+    }
+  ]
+}
+```
+
+#### `POST /api/products`
+Menambahkan produk baru ke katalog SQLite.
+
+**Request:**
+```json
+{
+  "name": "Kabel HDMI 2 Meter",
+  "category": "Aksesori",
+  "variant": "2M",
+  "price": 25000,
+  "stock": 8,
+  "image_url": "/uploads/hdmi.jpg",
+  "notes": "Kabel tambahan ke TV",
+  "is_active": 1
+}
+```
+
+**Response (`201 Created`):**
+```json
+{
+  "ok": true,
+  "product": {
+    "id": 8,
+    "name": "Kabel HDMI 2 Meter",
+    "category": "Aksesori",
+    "variant": "2M",
+    "price": 25000,
+    "stock": 8,
+    "is_active": 1,
+    "image_url": "/uploads/hdmi.jpg",
+    "notes": "Kabel tambahan ke TV",
+    "updated_at": "2026-11-23T07:05:00.000Z"
+  }
+}
+```
+
+#### `PUT /api/products/:id`
+Memperbarui data produk berdasarkan `id`.
+
+**Request:**
+```json
+{
+  "price": 28000,
+  "stock": 10,
+  "notes": "Kabel HDMI versi terbaru"
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "ok": true,
+  "product": {
+    "id": 8,
+    "name": "Kabel HDMI 2 Meter",
+    "category": "Aksesori",
+    "variant": "2M",
+    "price": 28000,
+    "stock": 10,
+    "is_active": 1,
+    "image_url": "/uploads/hdmi.jpg",
+    "notes": "Kabel HDMI versi terbaru",
+    "updated_at": "2026-11-23T07:06:00.000Z"
+  }
+}
+```
+
+#### `PATCH /api/products/:id/stock`
+Mengubah stok secara cepat menggunakan selisih (`delta`) atau nilai langsung (`stock`).
+
+**Request (contoh kurangi 1 stok):**
+```json
+{
+  "delta": -1
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "ok": true,
+  "product": {
+    "id": 8,
+    "name": "Kabel HDMI 2 Meter",
+    "category": "Aksesori",
+    "variant": "2M",
+    "price": 28000,
+    "stock": 9,
+    "is_active": 1,
+    "image_url": "/uploads/hdmi.jpg",
+    "notes": "Kabel HDMI versi terbaru",
+    "updated_at": "2026-11-23T07:07:00.000Z"
+  }
+}
+```
+
+#### `DELETE /api/products/:id`
+Menghapus produk dari katalog.
+
+**Response (`200 OK`):**
+```json
+{
+  "ok": true
+}
+```
+
+#### `POST /api/upload`
+Mengunggah gambar produk (PNG, JPG, WEBP, GIF) dalam format base64 Data URL.
+
+**Request:**
+```json
+{
+  "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg..."
+}
+```
+
+**Response (`201 Created`):**
+```json
+{
+  "ok": true,
+  "url": "/uploads/prod-1795334800000-a1b2c.png"
+}
+```
+
+---
+
+### 3. Jadwal COD Tempat STK (SQLite)
+
+#### `GET /api/cod`
+Mengambil daftar semua client yang menjadwalkan COD di `STK Sedulur Tunggal Kopi (STK KUSBANG)`.
+
+**Response (`200 OK`):**
+```json
+{
+  "ok": true,
+  "orders": [
+    {
+      "id": 1,
+      "customer_name": "Budi",
+      "customer_phone": "081234567890",
+      "product_name": "Plug and Play by Classic Project (500 GB)",
+      "qty": 1,
+      "cod_date": "2026-11-23",
+      "cod_time": "19:00",
+      "location": "STK Sedulur Tunggal Kopi (STK KUSBANG)",
+      "status": "menunggu",
+      "notes": "Tambah stik PS3 1 pcs",
+      "created_at": "2026-11-23T07:10:00.000Z",
+      "updated_at": "2026-11-23T07:10:00.000Z"
+    }
+  ]
+}
+```
+
+#### `POST /api/cod`
+Mencatat jadwal COD baru (lokasi otomatis diset ke `STK Sedulur Tunggal Kopi (STK KUSBANG)`).
+
+**Request:**
+```json
+{
+  "customer_name": "Budi",
+  "customer_phone": "081234567890",
+  "product_name": "Plug and Play by Classic Project (500 GB)",
+  "qty": 1,
+  "cod_date": "2026-11-23",
+  "cod_time": "19:00",
+  "notes": "Tambah stik PS3 1 pcs"
+}
+```
+
+**Response (`201 Created`):**
+```json
+{
+  "ok": true,
+  "order": {
+    "id": 1,
+    "customer_name": "Budi",
+    "customer_phone": "081234567890",
+    "product_name": "Plug and Play by Classic Project (500 GB)",
+    "qty": 1,
+    "cod_date": "2026-11-23",
+    "cod_time": "19:00",
+    "location": "STK Sedulur Tunggal Kopi (STK KUSBANG)",
+    "status": "menunggu",
+    "notes": "Tambah stik PS3 1 pcs",
+    "created_at": "2026-11-23T07:10:00.000Z",
+    "updated_at": "2026-11-23T07:10:00.000Z"
+  }
+}
+```
+
+#### `PATCH /api/cod/:id/status`
+Mengubah status jadwal COD (`menunggu`, `selesai`, atau `batal`).
+
+**Request:**
+```json
+{
+  "status": "selesai"
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "ok": true,
+  "order": {
+    "id": 1,
+    "customer_name": "Budi",
+    "customer_phone": "081234567890",
+    "product_name": "Plug and Play by Classic Project (500 GB)",
+    "qty": 1,
+    "cod_date": "2026-11-23",
+    "cod_time": "19:00",
+    "location": "STK Sedulur Tunggal Kopi (STK KUSBANG)",
+    "status": "selesai",
+    "notes": "Tambah stik PS3 1 pcs",
+    "created_at": "2026-11-23T07:10:00.000Z",
+    "updated_at": "2026-11-23T07:15:00.000Z"
+  }
+}
+```
+
+#### `DELETE /api/cod/:id`
+Menghapus jadwal COD berdasarkan `id`.
+
+**Response (`200 OK`):**
+```json
+{
+  "ok": true
+}
+```
+
+---
+
+### 4. Simulasi Chat & Log
+
+#### `POST /test-chat`
+Menguji respons AI dengan knowledge & stok SQLite terbaru tanpa mengirim WhatsApp sungguhan.
+
+**Request:**
+```json
+{
+  "chatId": "uji-1",
+  "message": "Paket 500 GB masih ada kak?"
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "ok": true,
+  "chatId": "uji-1",
+  "reply": "Masih ready ya kak, paket 500 GB harganya Rp 400.000.\n\nMau sekalian tambah stik atau rencana ambilnya gimana kak?",
+  "escalation": null,
+  "shareloks": [],
+  "codBookings": []
+}
+```
+
+#### `POST /test-chat/reset`
+Menghapus riwayat percakapan simulasi untuk `chatId` tertentu.
+
+**Request:**
+```json
+{
+  "chatId": "uji-1"
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "ok": true,
+  "cleared": "uji-1"
+}
+```
+
+#### `GET /logs?type=error&lines=100`
+Membaca baris log terbaru hari ini (`type=app` untuk semua aktivitas atau `type=error` khusus peringatan & error).
+
+**Response (`200 OK`):**
+```json
+{
+  "ok": true,
+  "type": "error",
+  "dir": "C:\\project\\CS\\logs",
+  "lines": [
+    "[2026-11-23 14:04:30.038] [WARN] [LLM] Model \"main\" gagal..."
+  ]
+}
+```
 
 ---
 
