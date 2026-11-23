@@ -17,7 +17,7 @@ const { Client, LocalAuth, Location, MessageMedia } = pkg;
 const config = createConfig();
 const logger = createLogger({ dir: config.logDir, level: config.logLevel });
 const catalogDb = new CatalogDb(config.catalogDbPath);
-const knowledge = new KnowledgeLoader(config.skillPath, config.knowledgePath, catalogDb);
+const knowledge = new KnowledgeLoader(config.skillPath, null, catalogDb);
 const llm = new RouterLLMClient({
   baseUrl: config.routerBaseUrl,
   apiKey: config.routerApiKey,

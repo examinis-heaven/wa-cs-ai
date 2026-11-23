@@ -41,7 +41,6 @@ export function createConfig(overrides = {}) {
       .map((s) => s.trim())
       .filter(Boolean),
     skillPath: env.SKILL_PATH || path.resolve('skills', 'cs-produk-marketplace', 'SKILL.md'),
-    knowledgePath: env.KNOWLEDGE_PATH || path.resolve('skills', 'cs-produk-marketplace', 'references', 'produk.md'),
     sessionDir: env.SESSION_DIR || 'sessions',
     catalogDbPath: env.CATALOG_DB_PATH || path.resolve('data', 'catalog.db'),
     messageDebounceMs: Number(env.MESSAGE_DEBOUNCE_MS ?? 10000),

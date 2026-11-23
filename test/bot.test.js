@@ -54,15 +54,21 @@ test('parseEscalationTag strips [ESKALASI: ...] even with nested [ISI] brackets'
   assert.equal(parsed.escalation, 'Pembeli tanya garansi (masih [ISI])');
 });
 
-test('KnowledgeLoader reads SKILL.md and references/produk.md', () => {
-  const loader = new KnowledgeLoader(
-    path.resolve('skills', 'cs-produk-marketplace', 'SKILL.md'),
-    path.resolve('skills', 'cs-produk-marketplace', 'references', 'produk.md')
-  );
-  const prompt = loader.getSystemPrompt();
-  assert.match(prompt, /# Penjual Produk Marketplace/);
-  assert.match(prompt, /Plug and Play by Classic Project/);
-  assert.match(prompt, /250 GB \| Rp 300\.000/);
+test('KnowledgeLoader reads SKILL.md and live SQLite catalog', () => {
+  const catalogDb = new CatalogDb(':memory:', { seedIfEmpty: true });
+  try {
+    const loader = new KnowledgeLoader(
+      path.resolve('skills', 'cs-produk-marketplace', 'SKILL.md'),
+      null,
+      catalogDb
+    );
+    const prompt = loader.getSystemPrompt();
+    assert.match(prompt, /# Penjual Produk Marketplace/);
+    assert.match(prompt, /Plug and Play by Classic Project \(250 GB\)/);
+    assert.match(prompt, /Rp 300\.000/);
+  } finally {
+    catalogDb.close();
+  }
 });
 
 test('CustomerServiceBot ignores fromMe, groups, status, and duplicate messages', async () => {
@@ -447,7 +453,7 @@ test('CatalogDb manages SQLite products and feeds live stock status into Knowled
     // Connect CatalogDb to KnowledgeLoader and verify live stock reflection
     const loader = new KnowledgeLoader(
       path.resolve('skills', 'cs-produk-marketplace', 'SKILL.md'),
-      path.resolve('skills', 'cs-produk-marketplace', 'references', 'produk.md'),
+      null,
       catalogDb
     );
 

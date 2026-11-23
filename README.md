@@ -18,7 +18,7 @@ flowchart LR
     WWEB -->|Debounce 10s per nomor| BOT["CustomerServiceBot<br/>+ Anti-Prompt Injection"]
     BOT -->|Prompt + Live Stok| LLM["9router (/v1/chat/completions)"]
     SQL["SQLite (data/catalog.db)<br/>Produk & Jadwal COD STK"] <-->|Real-Time| BOT
-    SKILL["skills/cs-produk-marketplace<br/>SKILL.md + produk.md"] -->|Hot-Reload| BOT
+    SKILL["skills/cs-produk-marketplace<br/>SKILL.md"] -->|Hot-Reload| BOT
     DASH["Dashboard Single-Page<br/>(GSAP + Mobile UI)"] <-->|REST API| SQL
     BOT -->|Simpan chat per customer| SESS["sessions/*.json"]
 ```
@@ -36,7 +36,7 @@ flowchart LR
 
 ### 2. Persona Penjual & Knowledge Hot-Reload
 - **Gaya Penjual Asli Indonesia**: Membalas santai, singkat, dan terstruktur dengan baris baru (Enter) serta list yang nyaman dibaca di HP—tanpa tanda bintang Markdown (`*...*`) dan tanpa terdengar seperti bot.
-- **Hot-Reload**: Setiap perubahan di [SKILL.md](skills/cs-produk-marketplace/SKILL.md) dan [produk.md](skills/cs-produk-marketplace/references/produk.md) langsung terbaca otomatis tanpa restart.
+- **Hot-Reload**: Setiap perubahan di [SKILL.md](skills/cs-produk-marketplace/SKILL.md) dan katalog SQLite langsung terbaca otomatis tanpa restart.
 - **Kerahasiaan Jumlah Stok**: Tidak membocorkan angka sisa stok kecuali pembeli meminta jumlah melebihi stok yang tersedia.
 
 ### 3. Dashboard Single-Page (GSAP Motion + Mobile Responsive)
@@ -58,9 +58,7 @@ flowchart LR
 │   └── dashboard.html          # Single-page UI (GSAP Motion + Mobile Responsive)
 ├── skills/
 │   └── cs-produk-marketplace/
-│       ├── SKILL.md            # Persona penjual & aturan komunikasi
-│       └── references/
-│           └── produk.md       # Knowledge produk, harga, FAQ, lokasi COD
+│       └── SKILL.md            # Persona penjual & aturan komunikasi
 ├── src/
 │   ├── bot.js                  # Orkestrator chat, debounce 10s, COD & shareloc
 │   ├── catalogDb.js            # SQLite database (products & cod_orders)
