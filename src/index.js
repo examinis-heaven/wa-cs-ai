@@ -1,4 +1,5 @@
 import os from 'node:os';
+import path from 'node:path';
 import 'dotenv/config';
 import pkg from 'whatsapp-web.js';
 import qrcode from 'qrcode-terminal';
@@ -11,7 +12,7 @@ import { SessionStore } from './sessionStore.js';
 import { CustomerServiceBot } from './bot.js';
 import { createTestServer } from './server.js';
 
-const { Client, LocalAuth, Location } = pkg;
+const { Client, LocalAuth, Location, MessageMedia } = pkg;
 
 const config = createConfig();
 const logger = createLogger({ dir: config.logDir, level: config.logLevel });
@@ -58,6 +59,17 @@ const bot = new CustomerServiceBot({
       new Location(loc.lat, loc.lng, { name: loc.name }),
       { sendSeen: false }
     ),
+  sendImage: async (chatId, product) => {
+    const caption = product.variant ? `${product.name} (${product.variant})` : product.name;
+    let media;
+    if (product.image_url.startsWith('/uploads/')) {
+      const filePath = path.resolve('data', 'uploads', path.basename(product.image_url));
+      media = MessageMedia.fromFilePath(filePath);
+    } else {
+      media = await MessageMedia.fromUrl(product.image_url, { unsafeMime: true });
+    }
+    return client.sendMessage(chatId, media, { caption, sendSeen: false });
+  },
   logger,
 });
 

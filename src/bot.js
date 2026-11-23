@@ -37,10 +37,11 @@ export class CustomerServiceBot {
    *   catalogDb?: import('./catalogDb.js').CatalogDb | null,
    *   sendMessage: (chatId: string, text: string) => Promise<unknown>,
    *   sendLocation?: (chatId: string, loc: { lat: number, lng: number, name: string, url: string }) => Promise<unknown>,
+   *   sendImage?: (chatId: string, product: { id: number, name: string, variant: string, image_url: string }) => Promise<unknown>,
    *   logger?: Pick<Console, 'log' | 'warn' | 'error'>
    * }} deps
    */
-  constructor({ config, knowledge, llm, sessions, catalogDb = null, sendMessage, sendLocation, logger = console }) {
+  constructor({ config, knowledge, llm, sessions, catalogDb = null, sendMessage, sendLocation, sendImage, logger = console }) {
     this.config = config;
     this.knowledge = knowledge;
     this.llm = llm;
@@ -48,6 +49,7 @@ export class CustomerServiceBot {
     this.catalogDb = catalogDb;
     this.sendMessage = sendMessage;
     this.sendLocation = sendLocation;
+    this.sendImage = sendImage;
     this.logger = logger;
     /** @type {Map<string, Promise<void>>} */
     this.chatQueues = new Map();
@@ -137,7 +139,7 @@ export class CustomerServiceBot {
       userMessage: cleanText,
     });
 
-    const { reply, escalation, shareloks, codBookings } = parseEscalationTag(rawReply);
+    const { reply, escalation, shareloks, codBookings, photoIds } = parseEscalationTag(rawReply);
     if (hasInternalPromptLeak(reply)) {
       this.logger.warn(`[SECURITY] Output diblokir karena potensi kebocoran prompt internal untuk ${chatId}`);
       return {
@@ -145,6 +147,7 @@ export class CustomerServiceBot {
         escalation: 'Output AI diblokir oleh filter keamanan (indikasi kebocoran instruksi internal)',
         shareloks: [],
         codBookings: [],
+        photoIds: [],
         blocked: true,
       };
     }
@@ -174,7 +177,7 @@ export class CustomerServiceBot {
       cleanedReply || 'Sebentar ya kak, saya cek dulu barangnya, nanti langsung saya kabari 🙏';
 
     this.sessions.appendTurn(chatId, cleanText, finalReply);
-    return { reply: finalReply, escalation, shareloks, codBookings };
+    return { reply: finalReply, escalation, shareloks, codBookings, photoIds };
   }
 
   /**
@@ -298,6 +301,7 @@ export class CustomerServiceBot {
       let replyText;
       let escalation = null;
       let shareloks = [];
+      let photoIds = [];
 
       if (!text && hasMedia) {
         replyText =
@@ -307,10 +311,23 @@ export class CustomerServiceBot {
         replyText = result.reply;
         escalation = result.escalation;
         shareloks = result.shareloks || [];
+        photoIds = result.photoIds || [];
       }
 
       await this.sendMessage(chatId, replyText);
       this.logger.log(`[CS] Balasan terkirim ke ${chatId}: ${replyText.replace(/\s+/g, ' ').slice(0, 120)}`);
+
+      if (photoIds.length > 0 && this.catalogDb && typeof this.sendImage === 'function') {
+        for (const prodId of photoIds) {
+          const product = this.catalogDb.getById(prodId);
+          if (product && product.image_url) {
+            await this.sendImage(chatId, product).catch((err) => {
+              this.logger.warn(`[CS] Gagal kirim foto produk #${prodId} ke ${chatId}:`, err.message);
+            });
+            this.logger.log(`[CS] Foto produk #${prodId} (${product.name}) terkirim ke ${chatId}`);
+          }
+        }
+      }
 
       if (shareloks.length > 0 && typeof this.sendLocation === 'function') {
         for (const kind of shareloks) {

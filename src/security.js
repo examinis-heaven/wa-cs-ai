@@ -31,7 +31,7 @@ export const SAFE_INJECTION_REPLY =
  */
 export function sanitizeUserMessage(text) {
   return String(text || '')
-    .replace(/\[(?:ESKALASI|SHARELOK)\s*:[^\]]*\]/gi, '')
+    .replace(/\[(?:ESKALASI|SHARELOK|COD_BOOKING|KIRIM_FOTO)\s*:[^\]]*\]/gi, '')
     .replace(/<\|[^|]{1,30}\|>/g, '')
     .replace(/<<\/?SYS>>/gi, '')
     .trim()

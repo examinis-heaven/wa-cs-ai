@@ -57,19 +57,19 @@ export class KnowledgeLoader {
    */
   getSystemPrompt() {
     const skillText = this.#readIfChanged(this.skillPath, 'skill');
-    const knowledgeText = this.#readIfChanged(this.knowledgePath, 'knowledge');
     const catalogSection = this.catalogDb
       ? [
-          '## Katalog & Stok Produk Live (Database SQLite — Sumber Kebenaran Stok Terkini)',
-          '- Data di bawah ini adalah stok & harga REAL-TIME dari database toko.',
+          '## Katalog Produk & Stok Live (Database SQLite — Satu-satunya Sumber Kebenaran Produk)',
+          '- Semua daftar produk, varian, harga, stok, catatan, dan ketersediaan foto diambil langsung dari database SQLite di bawah ini.',
           '- Jika suatu produk/varian berstatus `HABIS / TIDAK TERSEDIA (Stok: 0)`, katakan terus terang bahwa stoknya sedang habis atau tidak tersedia, dan tawarkan varian lain yang berstatus `TERSEDIA`.',
           '- Jika berstatus `TERSEDIA`, cukup katakan produknya ready/masih ada. **JANGAN ungkapkan angka jumlah sisa stok ke pembeli**, KECUALI jika pembeli meminta jumlah tertentu yang melebihi sisa stok (contoh: pembeli minta 4 pcs tapi stok kita tinggal 3 pcs, baru katakan: "Untuk saat ini stok kita tinggal 3 pcs kak").',
+          '- Jika pembeli minta foto/gambar produk dan di katalog tertulis `Foto: ADA`, tambahkan tag `[KIRIM_FOTO: <ID>]` (contoh: `[KIRIM_FOTO: 2]`) di baris paling akhir agar sistem otomatis mengirim foto produknya ke WhatsApp pembeli.',
           this.catalogDb.formatForPrompt(),
-          '',
-          '---',
-          '',
         ]
-      : [];
+      : [
+          '## Isi File `references/produk.md`',
+          this.#readIfChanged(this.knowledgePath, 'knowledge'),
+        ];
 
     return [
       skillText,
@@ -100,30 +100,31 @@ export class KnowledgeLoader {
       '---',
       '',
       ...catalogSection,
-      '## Isi File `references/produk.md`',
-      knowledgeText,
     ].join('\n');
   }
 }
 
 /**
- * Extract optional `[ESKALASI: ...]`, `[SHARELOK: ...]`, and `[COD_BOOKING: ...]` tags from LLM output
- * so they are never sent as raw text to the buyer.
+ * Extract optional `[ESKALASI: ...]`, `[SHARELOK: ...]`, `[COD_BOOKING: ...]`, and `[KIRIM_FOTO: ...]` tags
+ * from LLM output so they are never sent as raw text to the buyer.
  * @param {string} rawReply
  * @returns {{
  *   reply: string,
  *   escalation: string | null,
  *   shareloks: Array<'rumah' | 'cod'>,
- *   codBookings: Array<{ customer_name: string, product_name: string, qty: number, cod_date: string, cod_time: string, notes: string }>
+ *   codBookings: Array<{ customer_name: string, product_name: string, qty: number, cod_date: string, cod_time: string, notes: string }>,
+ *   photoIds: number[]
  * }}
  */
 export function parseEscalationTag(rawReply) {
   const eskalasiRegex = /\[ESKALASI:\s*(.+)\]/gi;
   const sharelokRegex = /\[SHARELOK:\s*([^\]]+)\]/gi;
   const codRegex = /\[COD_BOOKING:\s*([^\]]+)\]/gi;
+  const photoRegex = /\[KIRIM_FOTO:\s*([^\]]+)\]/gi;
   const notes = [];
   const sharelokSet = new Set();
   const codBookings = [];
+  const photoIdSet = new Set();
 
   const cleaned = rawReply
     .replace(eskalasiRegex, (_, note) => {
@@ -151,6 +152,15 @@ export function parseEscalationTag(rawReply) {
       }
       return '';
     })
+    .replace(photoRegex, (_, idsText) => {
+      for (const part of idsText.split(/[,\s]+/)) {
+        const id = Number.parseInt(part.trim(), 10);
+        if (Number.isFinite(id) && id > 0) {
+          photoIdSet.add(id);
+        }
+      }
+      return '';
+    })
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
@@ -159,5 +169,6 @@ export function parseEscalationTag(rawReply) {
     escalation: notes.length > 0 ? notes.join(' | ') : null,
     shareloks: [...sharelokSet],
     codBookings,
+    photoIds: [...photoIdSet],
   };
 }

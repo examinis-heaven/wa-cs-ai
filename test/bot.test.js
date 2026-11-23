@@ -669,3 +669,74 @@ test('COD booking from @lid chat resolves real WhatsApp phone number and contact
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
+
+test('KnowledgeLoader uses SQLite catalog directly (without produk.md) and bot sends product photo on [KIRIM_FOTO: id]', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-cs-photo-'));
+  const catalogDb = new CatalogDb(path.join(tmpDir, 'catalog.db'), { seedIfEmpty: false });
+  const prod = catalogDb.create({
+    name: 'Stik PS4 Wireless',
+    category: 'Aksesori',
+    variant: 'Hitam',
+    price: 110000,
+    stock: 4,
+    image_url: '/uploads/stik-ps4.jpg',
+  });
+
+  const loader = new KnowledgeLoader(
+    path.resolve('skills', 'cs-produk-marketplace', 'SKILL.md'),
+    null,
+    catalogDb
+  );
+  const prompt = loader.getSystemPrompt();
+  assert.match(prompt, /\[ID:1\].*Stik PS4 Wireless \(Hitam\).*Foto: ADA/);
+  assert.doesNotMatch(prompt, /Isi File `references\/produk\.md`/);
+
+  const sentImages = [];
+  const mockRouter = await startMockServer(async (_req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: `Ini foto Stik PS4 Wireless ya kak!\n[KIRIM_FOTO: ${prod.id}]`,
+            },
+          },
+        ],
+      })
+    );
+  });
+
+  try {
+    const config = createConfig({
+      routerBaseUrl: `${mockRouter.url}/v1`,
+      routerModel: 'CS',
+      messageDebounceMs: 0,
+    });
+    const bot = new CustomerServiceBot({
+      config,
+      knowledge: loader,
+      llm: new RouterLLMClient({ baseUrl: config.routerBaseUrl, apiKey: '', model: 'CS' }),
+      sessions: new SessionStore(),
+      catalogDb,
+      sendMessage: async () => {},
+      sendImage: async (chatId, product) => sentImages.push({ chatId, product }),
+      logger: { log() {}, warn() {}, error() {} },
+    });
+
+    await bot.handleIncomingMessage({
+      id: { _serialized: 'photo-1' },
+      from: '628123@c.us',
+      fromMe: false,
+      body: 'Minta foto stik ps4 kak',
+    });
+
+    assert.equal(sentImages.length, 1);
+    assert.equal(sentImages[0].chatId, '628123@c.us');
+    assert.equal(sentImages[0].product.image_url, '/uploads/stik-ps4.jpg');
+  } finally {
+    await mockRouter.close();
+    catalogDb.close();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
