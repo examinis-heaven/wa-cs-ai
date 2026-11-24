@@ -81,6 +81,14 @@ flowchart LR
 
 ## Cara Menjalankan
 
+### Setup Otomatis di Laptop Windows Baru (1 Script)
+Jalankan PowerShell di folder proyek:
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass; .\setup.ps1
+```
+Script [setup.ps1](setup.ps1) otomatis mengecek/menginstall **Node.js 24+**, **Google Chrome/Edge**, menjalankan `npm install`, menyiapkan `.env`, membuat folder `data`/`logs`/`sessions`, dan menjalankan `npm test`.
+
+### Setup Manual
 1. **Install dependencies** (Node.js 24+):
    ```bash
    npm install
