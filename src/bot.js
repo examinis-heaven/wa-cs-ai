@@ -1,4 +1,5 @@
 import { parseEscalationTag } from './knowledge.js';
+import { extractLaptopQuery, searchLaptopSpecs } from './webSearch.js';
 import {
   SAFE_INJECTION_REPLY,
   detectPromptInjection,
@@ -41,7 +42,7 @@ export class CustomerServiceBot {
    *   logger?: Pick<Console, 'log' | 'warn' | 'error'>
    * }} deps
    */
-  constructor({ config, knowledge, llm, sessions, catalogDb = null, sendMessage, sendLocation, sendImage, logger = console }) {
+  constructor({ config, knowledge, llm, sessions, catalogDb = null, sendMessage, sendLocation, sendImage, searchSpecs = searchLaptopSpecs, logger = console }) {
     this.config = config;
     this.knowledge = knowledge;
     this.llm = llm;
@@ -50,6 +51,7 @@ export class CustomerServiceBot {
     this.sendMessage = sendMessage;
     this.sendLocation = sendLocation;
     this.sendImage = sendImage;
+    this.searchSpecs = searchSpecs;
     this.logger = logger;
     /** @type {Map<string, Promise<void>>} */
     this.chatQueues = new Map();
@@ -130,8 +132,17 @@ export class CustomerServiceBot {
       };
     }
 
-    const systemPrompt = this.knowledge.getSystemPrompt(cleanText);
     const history = this.sessions.getHistory(chatId);
+    let laptopSpecSnippet = '';
+    const laptopQuery = extractLaptopQuery(cleanText, history);
+    if (laptopQuery && typeof this.searchSpecs === 'function') {
+      laptopSpecSnippet = await this.searchSpecs(laptopQuery).catch(() => '');
+      if (laptopSpecSnippet) {
+        this.logger.log(`[SEARCH] Spek laptop ditemukan untuk "${laptopQuery}"`);
+      }
+    }
+
+    const systemPrompt = this.knowledge.getSystemPrompt(cleanText, { laptopSpecSnippet });
 
     const rawReply = await this.llm.chat({
       systemPrompt,

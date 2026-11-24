@@ -12,6 +12,7 @@ import { RouterLLMClient, parseRouterResponseText } from '../src/llm.js';
 import { SessionStore } from '../src/sessionStore.js';
 import { CustomerServiceBot } from '../src/bot.js';
 import { createTestServer } from '../src/server.js';
+import { extractLaptopQuery, parseBingSnippets } from '../src/webSearch.js';
 import {
   SAFE_INJECTION_REPLY,
   detectPromptInjection,
@@ -818,5 +819,48 @@ test('CatalogDb imports game/emulator/PC-spec JSONs and retrieves relevant conte
   } finally {
     catalogDb.close();
     fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('extractLaptopQuery & parseBingSnippets detect laptop model and inject specs into prompt', async () => {
+  assert.equal(extractLaptopQuery('Laptop ThinkPad X260 kuat ga kak?'), 'ThinkPad X260 specs processor GPU');
+  assert.equal(extractLaptopQuery('Halo kak ready?'), null);
+
+  const sampleHtml = '<li class="b_algo"><h2>ThinkPad X260 Specs</h2><p>Intel Core i5-6200U, Intel HD Graphics 520, up to 16GB DDR4 RAM.</p></li>';
+  const snippet = parseBingSnippets(sampleHtml);
+  assert.match(snippet, /Intel Core i5-6200U/);
+
+  let capturedSystem = '';
+  const mockRouter = await startMockServer(async (_req, res, body) => {
+    capturedSystem = body.messages[0].content;
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ choices: [{ message: { content: 'RAM-nya berapa GB kak?' } }] }));
+  });
+
+  const catalogDb = new CatalogDb(':memory:', { seedIfEmpty: true });
+  try {
+    const config = createConfig({ routerBaseUrl: `${mockRouter.url}/v1`, routerModel: 'CS', messageDebounceMs: 0 });
+    const bot = new CustomerServiceBot({
+      config,
+      knowledge: new KnowledgeLoader(config.skillPath, null, catalogDb),
+      llm: new RouterLLMClient({ baseUrl: config.routerBaseUrl, apiKey: '', model: 'CS' }),
+      sessions: new SessionStore(),
+      catalogDb,
+      sendMessage: async () => {},
+      searchSpecs: async () => snippet,
+      logger: { log() {}, warn() {}, error() {} },
+    });
+
+    await bot.handleIncomingMessage({
+      id: { _serialized: 'laptop-1' },
+      from: '628123@c.us',
+      fromMe: false,
+      body: 'ThinkPad X260 RAM 8GB kuat main game?',
+    });
+    assert.match(capturedSystem, /Hasil Pencarian Internet Spek Laptop Pembeli/);
+    assert.match(capturedSystem, /Intel Core i5-6200U/);
+  } finally {
+    await mockRouter.close();
+    catalogDb.close();
   }
 });

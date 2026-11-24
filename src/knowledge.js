@@ -54,11 +54,19 @@ export class KnowledgeLoader {
   /**
    * Build the full system prompt for direct WhatsApp CS interaction.
    * @param {string} [userMessage]
+   * @param {{ laptopSpecSnippet?: string }} [extra]
    * @returns {string}
    */
-  getSystemPrompt(userMessage = '') {
+  getSystemPrompt(userMessage = '', { laptopSpecSnippet = '' } = {}) {
     const skillText = this.#readIfChanged(this.skillPath, 'skill');
     const gameKnowledge = this.catalogDb ? this.catalogDb.formatGameKnowledgeForPrompt(userMessage) : '';
+    const webSpecSection = laptopSpecSnippet
+      ? [
+          '',
+          '## Hasil Pencarian Internet Spek Laptop Pembeli',
+          laptopSpecSnippet,
+        ]
+      : [];
     const catalogSection = this.catalogDb
       ? [
           '## Katalog Produk & Stok Live (Database SQLite — Satu-satunya Sumber Kebenaran Produk)',
@@ -67,8 +75,11 @@ export class KnowledgeLoader {
           '- Jika berstatus `TERSEDIA`, cukup katakan produknya ready/masih ada. **JANGAN ungkapkan angka jumlah sisa stok ke pembeli**, KECUALI jika pembeli meminta jumlah tertentu yang melebihi sisa stok (contoh: pembeli minta 4 pcs tapi stok kita tinggal 3 pcs, baru katakan: "Untuk saat ini stok kita tinggal 3 pcs kak").',
           '- Jika pembeli minta foto/gambar produk dan di katalog tertulis `Foto: ADA`, tambahkan tag `[KIRIM_FOTO: <ID>]` (contoh: `[KIRIM_FOTO: 2]`) di baris paling akhir agar sistem otomatis mengirim foto produknya ke WhatsApp pembeli.',
           '- **Pemahaman paket game**: Semua game yang ada di daftar game adalah isi dari **paket Plug and Play**. Jika pembeli bertanya apakah suatu game ada atau tidak, **jangan pernah bilang "ada di database PS1/PS2/PS3"** — cukup jawab **"Ada kak, sudah termasuk di paket Plug and Play"** dan langsung sebutkan **minimal spek PC/laptop** untuk memainkannya (CPU, RAM, GPU).',
+          '- **Pemanis spek game ringan–menengah**: Setiap kali menyebutkan spek game ringan sampai menengah, tambahkan pemanis ramah seperti *"Laptop/PC kentang kuat kok kak"*.',
+          '- **Tanya laptop kuat atau tidak**: Jika pembeli bertanya laptop tertentu kuat atau tidak dan belum menyebut RAM-nya, **tanyakan dulu RAM-nya berapa GB**. Jika sudah ada info spek/RAM, gunakan hasil pencarian spek laptop & KB rekomendasi untuk menjawab jujur kuat atau tidaknya.',
           this.catalogDb.formatForPrompt(),
           ...(gameKnowledge ? ['', '## Database Daftar Game, Konsol & Rekomendasi Spek PC', gameKnowledge] : []),
+          ...webSpecSection,
         ]
       : this.knowledgePath && fs.existsSync(this.knowledgePath)
         ? [
