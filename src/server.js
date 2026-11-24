@@ -186,8 +186,10 @@ export function createTestServer({ config, bot, llm, sessions, catalogDb, getWaS
     }
     const query = typeof req.query.q === 'string' ? req.query.q : '';
     const system = typeof req.query.system === 'string' ? req.query.system : '';
-    const limit = Number(req.query.limit || 50);
-    return res.json({ ok: true, games: catalogDb.searchGames({ query, system, limit }) });
+    const page = Number(req.query.page || 1);
+    const limit = Number(req.query.limit || 25);
+    const result = catalogDb.searchGamesPaginated({ query, system, page, limit });
+    return res.json({ ok: true, ...result });
   });
 
   app.post('/api/games', (req, res) => {

@@ -325,14 +325,18 @@
           </div>
         </div>
         <div class="card">
-          <div class="card-header"><h2>Daftar Game di Database</h2></div>
+          <div class="card-header">
+            <h2>Daftar Game di Database</h2>
+            <span class="muted" id="gamesMeta">Memuat...</span>
+          </div>
           <div class="toolbar">
             <input id="gameSearch" placeholder="Cari judul game (mis. Mario, GTA, PES)..." oninput="debouncedLoadGames()" />
-            <select id="gameSystemFilter" onchange="loadGames()">
+            <select id="gameSystemFilter" onchange="loadGames(1)">
               <option value="">Semua Konsol</option>
             </select>
           </div>
           <div id="gamesList"></div>
+          <div id="gamesPagination" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center; margin-top:14px;"></div>
         </div>
       </div>
     </section>
@@ -430,6 +434,7 @@
     let products = [];
     let codOrders = [];
     let systems = [];
+    let gamesPage = 1;
     const PLACEHOLDER_SVG = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
 
     function showToast(msg) {
@@ -583,8 +588,8 @@
 
         const sel = document.getElementById('gameSystemFilter');
         const cur = sel.value;
-        sel.innerHTML = '<option value="">Semua Konsol (' + systems.length + ')</option>' +
-          systems.map(s => `<option value="${escapeHtml(s.system_code)}">${escapeHtml(s.system_code.toUpperCase())} (${s.game_count})</option>`).join('');
+        sel.innerHTML = '<option value="">Semua Konsol (' + totalGames.toLocaleString('id-ID') + ' game)</option>' +
+          systems.map(s => `<option value="${escapeHtml(s.system_code)}">${escapeHtml(s.system_code.toUpperCase())} (${Number(s.game_count).toLocaleString('id-ID')})</option>`).join('');
         sel.value = cur;
 
         document.getElementById('systemsSummary').innerHTML = systems.map(s => `
@@ -600,19 +605,47 @@
     }
 
     let gameTimer;
-    function debouncedLoadGames() { clearTimeout(gameTimer); gameTimer = setTimeout(loadGames, 250); }
+    function debouncedLoadGames() { clearTimeout(gameTimer); gameTimer = setTimeout(() => loadGames(1), 250); }
 
-    async function loadGames() {
+    function buildSmartPages(current, total) {
+      if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+      const pages = [1];
+      if (current > 3) pages.push('...');
+      const start = Math.max(2, current - 1);
+      const end = Math.min(total - 1, current + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (current < total - 2) pages.push('...');
+      pages.push(total);
+      return pages;
+    }
+
+    async function loadGames(page = gamesPage) {
+      gamesPage = page;
       const q = document.getElementById('gameSearch').value.trim();
       const sys = document.getElementById('gameSystemFilter').value;
-      const params = new URLSearchParams({ q, system: sys, limit: '60' });
+      const params = new URLSearchParams({ q, system: sys, page: String(page), limit: '25' });
       const data = await (await fetch('/api/games?' + params.toString())).json();
       const box = document.getElementById('gamesList');
+      const meta = document.getElementById('gamesMeta');
+      const pagBox = document.getElementById('gamesPagination');
+
       const list = data.games || [];
-      if (list.length === 0) {
+      const total = Number(data.total || 0);
+      const curPage = Number(data.page || 1);
+      const totalPages = Number(data.totalPages || 1);
+      gamesPage = curPage;
+
+      if (total === 0) {
+        meta.textContent = '0 game';
         box.innerHTML = '<div class="muted">Tidak ada game ditemukan.</div>';
+        pagBox.innerHTML = '';
         return;
       }
+
+      const startIdx = (curPage - 1) * Number(data.limit || 25) + 1;
+      const endIdx = startIdx + list.length - 1;
+      meta.textContent = `Menampilkan ${startIdx}–${endIdx} dari ${total.toLocaleString('id-ID')} game`;
+
       box.innerHTML = list.map(g => `
         <div class="list-row">
           <div>
@@ -623,6 +656,21 @@
           <button class="btn btn-danger btn-sm" type="button" onclick="deleteGame(${g.id})">Hapus</button>
         </div>
       `).join('');
+
+      if (totalPages <= 1) {
+        pagBox.innerHTML = '';
+        return;
+      }
+
+      const pages = buildSmartPages(curPage, totalPages);
+      const prevBtn = `<button class="btn btn-secondary btn-sm" type="button" ${curPage <= 1 ? 'disabled style="opacity:0.45;"' : `onclick="loadGames(${curPage - 1})"`}>&laquo; Prev</button>`;
+      const nextBtn = `<button class="btn btn-secondary btn-sm" type="button" ${curPage >= totalPages ? 'disabled style="opacity:0.45;"' : `onclick="loadGames(${curPage + 1})"`}>Next &raquo;</button>`;
+      const pageBtns = pages.map(p => {
+        if (p === '...') return '<span class="muted" style="padding:0 4px;">...</span>';
+        const activeStyle = p === curPage ? '' : 'btn-secondary';
+        return `<button class="btn ${activeStyle} btn-sm" type="button" onclick="loadGames(${p})">${p}</button>`;
+      }).join('');
+      pagBox.innerHTML = prevBtn + pageBtns + nextBtn;
     }
 
     async function deleteGame(id) {

@@ -542,6 +542,47 @@ export class CatalogDb {
   }
 
   /**
+   * Search games with smart pagination metadata (`total`, `page`, `limit`, `totalPages`).
+   * @param {{ query?: string, system?: string, page?: number, limit?: number }} [opts]
+   */
+  searchGamesPaginated({ query = '', system = '', page = 1, limit = 25 } = {}) {
+    const safeLimit = Math.max(1, Math.min(Number(limit || 25), 100));
+    const q = String(query || '').trim();
+    const sys = String(system || '').trim().toLowerCase();
+
+    const whereParts = [];
+    const params = [];
+    if (sys) {
+      whereParts.push('system_code = ?');
+      params.push(sys);
+    }
+    if (q) {
+      whereParts.push('title LIKE ?');
+      params.push(`%${q}%`);
+    }
+    const whereSql = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+    const countRow = this.db
+      .prepare(`SELECT COUNT(*) AS total FROM games_kb ${whereSql}`)
+      .get(...params);
+    const total = Number(countRow?.total || 0);
+    const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+    const safePage = Math.max(1, Math.min(Number(page || 1), totalPages));
+    const offset = (safePage - 1) * safeLimit;
+
+    const games = this.db
+      .prepare(
+        `SELECT id, system_code, title, raw_name, size_mb
+         FROM games_kb ${whereSql}
+         ORDER BY title ASC, id ASC
+         LIMIT ? OFFSET ?`
+      )
+      .all(...params, safeLimit, offset);
+
+    return { games, total, page: safePage, limit: safeLimit, totalPages };
+  }
+
+  /**
    * Add a game to games_kb and update systems_kb count.
    * @param {{ system_code: string, title: string, size_mb?: number }} input
    */

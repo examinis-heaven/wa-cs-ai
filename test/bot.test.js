@@ -795,6 +795,12 @@ test('CatalogDb imports game/emulator/PC-spec JSONs and retrieves relevant conte
     assert.equal(games.length, 1);
     assert.equal(games[0].system_code, 'ps2');
 
+    const paged = catalogDb.searchGamesPaginated({ page: 2, limit: 1 });
+    assert.equal(paged.total, 2);
+    assert.equal(paged.totalPages, 2);
+    assert.equal(paged.page, 2);
+    assert.equal(paged.games.length, 1);
+
     const promptCtx = catalogDb.formatGameKnowledgeForPrompt('Spek PC RAM 4GB bisa main God of War?');
     assert.match(promptCtx, /Sony PlayStation 2/);
     assert.match(promptCtx, /\[ps2\] God of War 2/);
