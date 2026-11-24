@@ -1,5 +1,5 @@
 import { parseEscalationTag } from './knowledge.js';
-import { extractLaptopQuery, searchLaptopSpecs } from './webSearch.js';
+import { extractLaptopQuery, normalizeLaptopKey, searchLaptopSpecs } from './webSearch.js';
 import {
   SAFE_INJECTION_REPLY,
   detectPromptInjection,
@@ -135,10 +135,22 @@ export class CustomerServiceBot {
     const history = this.sessions.getHistory(chatId);
     let laptopSpecSnippet = '';
     const laptopQuery = extractLaptopQuery(cleanText, history);
-    if (laptopQuery && typeof this.searchSpecs === 'function') {
-      laptopSpecSnippet = await this.searchSpecs(laptopQuery).catch(() => '');
-      if (laptopSpecSnippet) {
-        this.logger.log(`[SEARCH] Spek laptop ditemukan untuk "${laptopQuery}"`);
+    if (laptopQuery) {
+      const modelKey = normalizeLaptopKey(laptopQuery);
+      const cachedSpec = this.catalogDb?.getLaptopSpec?.(modelKey);
+      if (cachedSpec?.specs_text) {
+        laptopSpecSnippet = cachedSpec.specs_text;
+        this.logger.log(`[SEARCH] Pakai cache SQLite spek laptop "${modelKey}"`);
+      } else if (typeof this.searchSpecs === 'function') {
+        laptopSpecSnippet = await this.searchSpecs(laptopQuery).catch(() => '');
+        if (laptopSpecSnippet) {
+          this.catalogDb?.saveLaptopSpec?.({
+            model_key: modelKey,
+            model_name: modelKey,
+            specs_text: laptopSpecSnippet,
+          });
+          this.logger.log(`[SEARCH] Spek laptop "${modelKey}" disimpan ke SQLite`);
+        }
       }
     }
 

@@ -168,6 +168,15 @@ export class CatalogDb {
         key TEXT PRIMARY KEY,
         content TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS laptop_specs_kb (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        model_key TEXT NOT NULL UNIQUE,
+        model_name TEXT NOT NULL,
+        specs_text TEXT NOT NULL,
+        source TEXT NOT NULL DEFAULT 'web',
+        updated_at TEXT NOT NULL
+      );
     `);
 
     // Migrate existing catalog.db safely if image_url column does not exist yet
@@ -662,6 +671,57 @@ export class CatalogDb {
       .prepare("INSERT OR REPLACE INTO kb_docs (key, content) VALUES ('pc_recommendations', ?)")
       .run(JSON.stringify(parsed, null, 2));
     return parsed;
+  }
+
+  // --- Cached Laptop Specs KB ---
+
+  /**
+   * Find cached laptop specs by normalized model key.
+   * @param {string} modelKey
+   */
+  getLaptopSpec(modelKey) {
+    const key = String(modelKey || '').trim().toLowerCase();
+    if (!key) return null;
+    return this.db
+      .prepare('SELECT id, model_key, model_name, specs_text, source, updated_at FROM laptop_specs_kb WHERE model_key = ?')
+      .get(key) || null;
+  }
+
+  /**
+   * Save or update searched laptop specs in SQLite.
+   * @param {{ model_key: string, model_name?: string, specs_text: string, source?: string }} input
+   */
+  saveLaptopSpec({ model_key, model_name, specs_text, source = 'web' }) {
+    const key = String(model_key || '').trim().toLowerCase();
+    const text = String(specs_text || '').trim();
+    if (!key || !text) return null;
+    const name = String(model_name || key).trim();
+    const now = new Date().toISOString();
+
+    this.db
+      .prepare(
+        `INSERT INTO laptop_specs_kb (model_key, model_name, specs_text, source, updated_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(model_key) DO UPDATE SET
+           model_name = excluded.model_name,
+           specs_text = excluded.specs_text,
+           source = excluded.source,
+           updated_at = excluded.updated_at`
+      )
+      .run(key, name, text, source, now);
+
+    return this.getLaptopSpec(key);
+  }
+
+  listLaptopSpecs() {
+    return this.db
+      .prepare('SELECT id, model_key, model_name, specs_text, source, updated_at FROM laptop_specs_kb ORDER BY updated_at DESC, id DESC')
+      .all();
+  }
+
+  removeLaptopSpec(id) {
+    const info = this.db.prepare('DELETE FROM laptop_specs_kb WHERE id = ?').run(Number(id));
+    return info.changes > 0;
   }
 
   /**

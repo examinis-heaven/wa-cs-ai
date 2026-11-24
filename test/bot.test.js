@@ -838,6 +838,7 @@ test('extractLaptopQuery & parseBingSnippets detect laptop model and inject spec
   });
 
   const catalogDb = new CatalogDb(':memory:', { seedIfEmpty: true });
+  let searchCallCount = 0;
   try {
     const config = createConfig({ routerBaseUrl: `${mockRouter.url}/v1`, routerModel: 'CS', messageDebounceMs: 0 });
     const bot = new CustomerServiceBot({
@@ -847,7 +848,10 @@ test('extractLaptopQuery & parseBingSnippets detect laptop model and inject spec
       sessions: new SessionStore(),
       catalogDb,
       sendMessage: async () => {},
-      searchSpecs: async () => snippet,
+      searchSpecs: async () => {
+        searchCallCount++;
+        return snippet;
+      },
       logger: { log() {}, warn() {}, error() {} },
     });
 
@@ -858,6 +862,19 @@ test('extractLaptopQuery & parseBingSnippets detect laptop model and inject spec
       body: 'ThinkPad X260 RAM 8GB kuat main game?',
     });
     assert.match(capturedSystem, /Hasil Pencarian Internet Spek Laptop Pembeli/);
+    assert.match(capturedSystem, /Intel Core i5-6200U/);
+    assert.equal(searchCallCount, 1);
+    assert.equal(catalogDb.listLaptopSpecs().length, 1);
+
+    // Second buyer asking same laptop -> uses SQLite cache, does NOT call searchSpecs again!
+    capturedSystem = '';
+    await bot.handleIncomingMessage({
+      id: { _serialized: 'laptop-2' },
+      from: '628456@c.us',
+      fromMe: false,
+      body: 'Kalau ThinkPad X260 RAM 4GB kuat ga?',
+    });
+    assert.equal(searchCallCount, 1);
     assert.match(capturedSystem, /Intel Core i5-6200U/);
   } finally {
     await mockRouter.close();

@@ -235,6 +235,18 @@ export function createTestServer({ config, bot, llm, sessions, catalogDb, getWaS
     }
   });
 
+  app.get('/api/laptops', (_req, res) => {
+    if (!catalogDb) return res.status(503).json({ ok: false, error: 'Catalog database tidak aktif' });
+    return res.json({ ok: true, laptops: catalogDb.listLaptopSpecs() });
+  });
+
+  app.delete('/api/laptops/:id', (req, res) => {
+    if (!catalogDb) return res.status(503).json({ ok: false, error: 'Catalog database tidak aktif' });
+    const removed = catalogDb.removeLaptopSpec(Number(req.params.id));
+    if (!removed) return res.status(404).json({ ok: false, error: 'Data laptop tidak ditemukan' });
+    return res.json({ ok: true });
+  });
+
   // --- WhatsApp Login & Session Control ---
   app.get('/api/wa/status', (_req, res) => {
     if (waControl && typeof waControl.getInfo === 'function') {

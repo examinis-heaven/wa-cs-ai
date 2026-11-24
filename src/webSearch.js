@@ -36,6 +36,19 @@ export function parseBingSnippets(html) {
 }
 
 /**
+ * Normalize a laptop search query into a stable cache key (e.g. "thinkpad x260").
+ * @param {string} searchQuery
+ * @returns {string}
+ */
+export function normalizeLaptopKey(searchQuery) {
+  return String(searchQuery || '')
+    .replace(/\s+specs\s+processor\s+GPU$/i, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
  * Determine if the conversation is asking about a laptop/PC model's capability.
  * @param {string} currentMessage
  * @param {Array<{ role: string, content: string }>} [history]
