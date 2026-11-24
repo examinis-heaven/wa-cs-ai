@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Classic Project — Panel Toko, Game &amp; WhatsApp</title>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
   <style>
     :root {
       --bg: #070b14;
@@ -384,7 +383,7 @@
           <div id="waDetails" class="muted" style="font-size:0.86rem;">Memuat status WhatsApp...</div>
           <div id="qrWrapper" style="display:none; text-align:center;">
             <div class="qr-box">
-              <canvas id="qrCanvas"></canvas>
+              <div id="qrCanvas" style="width:240px; height:240px; margin:0 auto;"></div>
               <small style="font-weight:600;">Scan di WhatsApp HP &gt; Perangkat Tertaut</small>
             </div>
           </div>
@@ -566,11 +565,18 @@
           <div>Session ID: <code>${escapeHtml(data.clientId)}</code> (${escapeHtml(data.dataPath)})</div>
           ${hint}
         `;
-        if (data.qr && window.QRCode) {
+        if (data.qrSvg) {
           qrWrap.style.display = 'block';
-          QRCode.toCanvas(document.getElementById('qrCanvas'), data.qr, { width: 220 });
+          const qrBox = document.getElementById('qrCanvas');
+          if (qrBox.dataset.lastQr !== data.qr) {
+            qrBox.innerHTML = data.qrSvg;
+            qrBox.dataset.lastQr = data.qr || '';
+          }
         } else {
           qrWrap.style.display = 'none';
+          const qrBox = document.getElementById('qrCanvas');
+          qrBox.innerHTML = '';
+          qrBox.dataset.lastQr = '';
         }
         document.getElementById('waPill').textContent = 'WA: ' + data.status;
         document.getElementById('waDot').classList.toggle('live', data.status === 'ready');

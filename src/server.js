@@ -1,11 +1,39 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
+
+const require = createRequire(import.meta.url);
+const QRCodeMatrix = require('qrcode-terminal/vendor/QRCode');
+const QRErrorCorrectLevel = require('qrcode-terminal/vendor/QRCode/QRErrorCorrectLevel');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DASHBOARD_HTML_PATH = path.resolve(__dirname, '..', 'public', 'dashboard.html');
 const UPLOADS_DIR = path.resolve(__dirname, '..', 'data', 'uploads');
+
+function renderQrSvg(text) {
+  if (!text) return null;
+  try {
+    const qr = new QRCodeMatrix(-1, QRErrorCorrectLevel.L);
+    qr.addData(String(text));
+    qr.make();
+    const count = qr.getModuleCount();
+    const margin = 4;
+    const size = count + margin * 2;
+    let d = '';
+    for (let r = 0; r < count; r += 1) {
+      for (let c = 0; c < count; c += 1) {
+        if (qr.isDark(r, c)) {
+          d += `M${c + margin},${r + margin}h1v1h-1z`;
+        }
+      }
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;"><rect width="${size}" height="${size}" fill="#ffffff"/><path d="${d}" fill="#000000"/></svg>`;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Local HTTP server for single-page product catalog dashboard,
@@ -270,12 +298,18 @@ export function createTestServer({ config, bot, llm, sessions, catalogDb, getWaS
   // --- WhatsApp Login & Session Control ---
   app.get('/api/wa/status', (_req, res) => {
     if (waControl && typeof waControl.getInfo === 'function') {
-      return res.json({ ok: true, ...waControl.getInfo() });
+      const info = waControl.getInfo();
+      return res.json({
+        ok: true,
+        ...info,
+        qrSvg: info?.qr ? renderQrSvg(info.qr) : null,
+      });
     }
     return res.json({
       ok: true,
       status: getWaStatus(),
       qr: null,
+      qrSvg: null,
       user: null,
       clientId: config.wwebjsClientId,
       dataPath: config.wwebjsDataPath,
