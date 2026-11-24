@@ -52,10 +52,11 @@ function buildWaClient() {
       clientId: config.wwebjsClientId,
       dataPath: config.wwebjsDataPath,
     }),
+    authTimeoutMs: 60000,
     puppeteer: {
       headless: config.wwebjsHeadless,
       ...(config.wwebjsExecutablePath ? { executablePath: config.wwebjsExecutablePath } : {}),
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     },
   });
 
@@ -142,8 +143,40 @@ function startWaClient() {
   client = buildWaClient();
   logger.log('[WA] Memulai whatsapp-web.js (memuat session tersimpan atau menyiapkan QR)...');
   client.initialize().catch((err) => {
+    waStatus = `error:${err.message || 'init_failed'}`;
     logger.error('[WA] Gagal menginisialisasi WhatsApp client:', err);
   });
+}
+
+async function closeClientSafely(targetClient) {
+  if (!targetClient) return;
+  try {
+    await targetClient.logout().catch(() => {});
+  } catch {
+    // ignore logout error
+  }
+  try {
+    await targetClient.destroy().catch(() => {});
+  } catch {
+    // ignore destroy error
+  }
+  try {
+    await targetClient.pupBrowser?.close?.().catch(() => {});
+  } catch {
+    // ignore browser close error
+  }
+}
+
+function removeSessionFolderWithRetry(sessionFolder) {
+  if (!fs.existsSync(sessionFolder)) return;
+  for (let i = 0; i < 3; i++) {
+    try {
+      fs.rmSync(sessionFolder, { recursive: true, force: true });
+      return;
+    } catch {
+      // Wait briefly if Windows still holds lock on Chrome cache files
+    }
+  }
 }
 
 const waControl = {
@@ -165,15 +198,12 @@ const waControl = {
     latestQr = null;
     const prev = client;
     client = null;
-    if (prev) {
-      await prev.logout().catch(() => {});
-      await prev.destroy().catch(() => {});
-    }
+    await closeClientSafely(prev);
     const sessionFolder = path.resolve(config.wwebjsDataPath, `session-${config.wwebjsClientId}`);
-    if (fs.existsSync(sessionFolder)) {
-      fs.rmSync(sessionFolder, { recursive: true, force: true });
-    }
-    setTimeout(() => startWaClient(), 800);
+    setTimeout(() => {
+      removeSessionFolderWithRetry(sessionFolder);
+      startWaClient();
+    }, 2000);
   },
   restart: async () => {
     logger.log('[WA] Restart client diminta dari dashboard...');
@@ -183,8 +213,9 @@ const waControl = {
     client = null;
     if (prev) {
       await prev.destroy().catch(() => {});
+      await prev.pupBrowser?.close?.().catch(() => {});
     }
-    setTimeout(() => startWaClient(), 800);
+    setTimeout(() => startWaClient(), 1500);
   },
 };
 
