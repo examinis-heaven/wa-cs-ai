@@ -326,8 +326,8 @@ export class CatalogDb {
       const label = item.variant ? `${item.name} (${item.variant})` : item.name;
       const available = item.is_active === 1 && item.stock > 0;
       const statusText = available
-        ? `TERSEDIA (Stok: ${item.stock} pcs)`
-        : 'HABIS / TIDAK TERSEDIA (Stok: 0)';
+        ? 'READY / TERSEDIA'
+        : 'KOSONG / PRE-ORDER (PO)';
       const photoPart = item.image_url ? 'Foto: ADA' : 'Foto: belum ada';
       const notePart = item.notes ? ` | Catatan: ${item.notes}` : '';
       return `- [ID:${item.id}] [${item.category}] ${label} | Harga: ${formatRupiah(item.price)} | Status: ${statusText} | ${photoPart}${notePart}`;

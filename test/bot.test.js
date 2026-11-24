@@ -466,11 +466,15 @@ test('CatalogDb manages SQLite products and feeds live stock status into Knowled
       stock: 4,
       notes: 'Kabel tambahan',
     });
-    assert.match(loader.getSystemPrompt(), /Kabel HDMI 2 Meter \(2M\).*TERSEDIA \(Stok: 4 pcs\)/);
+    const promptReady = loader.getSystemPrompt();
+    assert.match(promptReady, /Kabel HDMI 2 Meter \(2M\).*READY \/ TERSEDIA/);
+    assert.doesNotMatch(promptReady, /Stok:\s*4\s*pcs/);
 
-    // Adjust stock to 0 -> immediately becomes HABIS in system prompt
+    // Adjust stock to 0 -> immediately becomes KOSONG / PRE-ORDER (PO) in system prompt without leaking stock count
     catalogDb.adjustStock(added.id, -4);
-    assert.match(loader.getSystemPrompt(), /Kabel HDMI 2 Meter \(2M\).*HABIS \/ TIDAK TERSEDIA \(Stok: 0\)/);
+    const promptEmpty = loader.getSystemPrompt();
+    assert.match(promptEmpty, /Kabel HDMI 2 Meter \(2M\).*KOSONG \/ PRE-ORDER \(PO\)/);
+    assert.doesNotMatch(promptEmpty, /Stok:\s*0/);
 
     // Test Dashboard HTML & REST API
     const config = createConfig({ routerBaseUrl: 'http://127.0.0.1:9/v1' });
