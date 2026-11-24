@@ -790,7 +790,7 @@ export class CatalogDb {
           )
           .all();
         if (popularGames.length > 0) {
-          sections.push('\nDaftar game populer asli di paket Plug and Play (pilih 5 yang sesuai spek laptop pembeli, bersihkan kode region/ID):');
+          sections.push('\nDaftar game populer asli di paket Plug and Play (pilih 10 yang sesuai spek laptop pembeli, bersihkan kode region/ID):');
           sections.push(
             popularGames
               .map((g) => `- ${g.title} | Min spek: CPU ${g.min_cpu || '-'}, RAM ${g.min_ram || '-'}, GPU ${g.min_gpu || '-'}`)
