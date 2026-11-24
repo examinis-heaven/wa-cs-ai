@@ -804,12 +804,14 @@ export class CatalogDb {
 
         if (isSpecQuery) {
           sections.push('\nPanduan Spek PC & Rekomendasi Setting Batocera:');
-          sections.push(JSON.stringify({
-            general_rules: kb.general_rules,
-            hardware_tiers: kb.hardware_tiers,
-            windows_wine_games_kb: kb.windows_wine_games_kb,
-            troubleshooting_rules: kb.troubleshooting_rules,
-          }));
+          sections.push(
+            JSON.stringify({
+              general_rules: kb.general_rules,
+              hardware_tiers: kb.hardware_tiers,
+              windows_wine_games_kb: kb.windows_wine_games_kb,
+              troubleshooting_rules: kb.troubleshooting_rules,
+            }).replace(/\s*\(?\bsuper\s*lite\b\)?/gi, '')
+          );
         } else if (Array.isArray(kb.hardware_tiers)) {
           sections.push('\nRingkasan Tier PC yang Didukung:');
           sections.push(

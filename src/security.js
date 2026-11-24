@@ -87,6 +87,7 @@ export function stripAsteriskFormatting(text) {
  */
 export function formatWhatsAppReadability(text) {
   return String(text || '')
+    .replace(/\s*\(?\bsuper\s*lite\b\)?/gi, '')
     // Break ": - Item" onto a new line
     .replace(/:\s+-\s+/g, ':\n- ')
     // Break inline " - Item" when preceded by sentence/punctuation or another list item
