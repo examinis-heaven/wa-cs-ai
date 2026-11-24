@@ -151,7 +151,10 @@ function startWaClient() {
 async function closeClientSafely(targetClient) {
   if (!targetClient) return;
   try {
-    await targetClient.logout().catch(() => {});
+    await Promise.race([
+      targetClient.logout().catch(() => {}),
+      new Promise((r) => setTimeout(r, 3000)),
+    ]);
   } catch {
     // ignore logout error
   }
@@ -167,14 +170,17 @@ async function closeClientSafely(targetClient) {
   }
 }
 
-function removeSessionFolderWithRetry(sessionFolder) {
-  if (!fs.existsSync(sessionFolder)) return;
-  for (let i = 0; i < 3; i++) {
-    try {
-      fs.rmSync(sessionFolder, { recursive: true, force: true });
-      return;
-    } catch {
-      // Wait briefly if Windows still holds lock on Chrome cache files
+function removeSavedSessions(dataPath) {
+  const targets = [path.resolve(dataPath), path.resolve('.wwebjs_cache')];
+  for (const dir of targets) {
+    if (!fs.existsSync(dir)) continue;
+    for (let i = 0; i < 5; i++) {
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+        break;
+      } catch {
+        // Wait briefly if Windows still holds lock
+      }
     }
   }
 }
@@ -193,15 +199,15 @@ const waControl = {
     dataPath: config.wwebjsDataPath,
   }),
   logout: async () => {
-    logger.log('[WA] Logout diminta dari dashboard...');
+    logger.log('[WA] Logout diminta: menghapus seluruh session tersimpan...');
     waStatus = 'logging_out';
     latestQr = null;
     const prev = client;
     client = null;
     await closeClientSafely(prev);
-    const sessionFolder = path.resolve(config.wwebjsDataPath, `session-${config.wwebjsClientId}`);
     setTimeout(() => {
-      removeSessionFolderWithRetry(sessionFolder);
+      removeSavedSessions(config.wwebjsDataPath);
+      logger.log(`[WA] Session "${config.wwebjsDataPath}" dihapus. Memulai client baru untuk QR...`);
       startWaClient();
     }, 2000);
   },
