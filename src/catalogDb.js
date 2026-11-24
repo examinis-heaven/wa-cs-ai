@@ -700,8 +700,19 @@ export class CatalogDb {
 
       const matches = [...matchedMap.values()].slice(0, 25);
       if (matches.length > 0) {
-        sections.push('\nHasil pencarian game yang relevan dengan pertanyaan pembeli:');
-        sections.push(matches.map((g) => `- [${g.system_code}] ${g.title} (${g.size_mb} MB)`).join('\n'));
+        const sysSpecMap = new Map(systems.map((s) => [s.system_code, s]));
+        sections.push('\nHasil pencarian game yang termasuk dalam paket Plug and Play:');
+        sections.push(
+          matches
+            .map((g) => {
+              const sp = sysSpecMap.get(g.system_code);
+              const specText = sp
+                ? ` | Min spek: CPU ${sp.min_cpu || '-'}, RAM ${sp.min_ram || '-'}, GPU ${sp.min_gpu || '-'}`
+                : '';
+              return `- ${g.title} (${g.size_mb} MB)${specText}`;
+            })
+            .join('\n')
+        );
       }
     }
 

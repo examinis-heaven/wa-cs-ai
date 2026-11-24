@@ -803,7 +803,7 @@ test('CatalogDb imports game/emulator/PC-spec JSONs and retrieves relevant conte
 
     const promptCtx = catalogDb.formatGameKnowledgeForPrompt('Spek PC RAM 4GB bisa main God of War?');
     assert.match(promptCtx, /Sony PlayStation 2/);
-    assert.match(promptCtx, /\[ps2\] God of War 2/);
+    assert.match(promptCtx, /God of War 2.*Min spek: CPU Core i3, RAM 4 GB, GPU GTX 750/);
     assert.match(promptCtx, /Panduan Spek PC & Rekomendasi Setting Batocera/);
 
     // Verify game CRUD & PC KB save + WA status API

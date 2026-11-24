@@ -66,6 +66,7 @@ export class KnowledgeLoader {
           '- Jika suatu produk/varian berstatus `HABIS / TIDAK TERSEDIA (Stok: 0)`, katakan terus terang bahwa stoknya sedang habis atau tidak tersedia, dan tawarkan varian lain yang berstatus `TERSEDIA`.',
           '- Jika berstatus `TERSEDIA`, cukup katakan produknya ready/masih ada. **JANGAN ungkapkan angka jumlah sisa stok ke pembeli**, KECUALI jika pembeli meminta jumlah tertentu yang melebihi sisa stok (contoh: pembeli minta 4 pcs tapi stok kita tinggal 3 pcs, baru katakan: "Untuk saat ini stok kita tinggal 3 pcs kak").',
           '- Jika pembeli minta foto/gambar produk dan di katalog tertulis `Foto: ADA`, tambahkan tag `[KIRIM_FOTO: <ID>]` (contoh: `[KIRIM_FOTO: 2]`) di baris paling akhir agar sistem otomatis mengirim foto produknya ke WhatsApp pembeli.',
+          '- **Pemahaman paket game**: Semua game yang ada di daftar game adalah isi dari **paket Plug and Play**. Jika pembeli bertanya apakah suatu game ada atau tidak, **jangan pernah bilang "ada di database PS1/PS2/PS3"** — cukup jawab **"Ada kak, sudah termasuk di paket Plug and Play"** dan langsung sebutkan **minimal spek PC/laptop** untuk memainkannya (CPU, RAM, GPU).',
           this.catalogDb.formatForPrompt(),
           ...(gameKnowledge ? ['', '## Database Daftar Game, Konsol & Rekomendasi Spek PC', gameKnowledge] : []),
         ]
