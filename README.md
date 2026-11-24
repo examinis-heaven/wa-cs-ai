@@ -43,6 +43,8 @@ flowchart LR
 - **Animasi Halus (GSAP)**: Transisi tab, kartu statistik, modal form, dan notifikasi toast yang responsif di desktop maupun HP.
 - **Katalog Produk SQLite (`node:sqlite`)**: Tambah, edit, hapus, upload/URL gambar produk, pencarian, filter status (`Tersedia` / `Habis`), dan tombol cepat stok `-1` / `+1`.
 - **Form & Daftar Jadwal COD (STK)**: Mencatat jadwal COD di titik `STK Sedulur Tunggal Kopi (STK KUSBANG)`—baik input manual dari dashboard maupun otomatis dari chat WhatsApp—lengkap dengan tombol **Chat WA** langsung.
+- **Database Game, Spek PC & Login WA**: Kelola 2.895+ game & 28 konsol dengan *smart pagination*, edit KB rekomendasi spek PC, serta lihat QR code & kontrol login/logout WhatsApp langsung dari web.
+- **Pencarian Spek Laptop Otomatis + Cache SQLite**: Mencari spek CPU/GPU laptop pembeli di internet sekali lalu menyimpannya ke tabel `laptop_specs_kb` agar pertanyaan berikutnya untuk laptop yang sama langsung dijawab tanpa search ulang.
 - **Akses Jaringan Lokal (LAN/HP)**: Server listen di `0.0.0.0:3001` sehingga bisa dibuka dari HP dalam satu jaringan WiFi.
 
 ### 4. Keamanan & Logging
@@ -55,25 +57,29 @@ flowchart LR
 
 ```text
 ├── public/
-│   └── dashboard.html          # Single-page UI (GSAP Motion + Mobile Responsive)
+│   └── dashboard.html          # Panel Web (GSAP Motion + Mobile Responsive + QR Login WA)
 ├── skills/
 │   └── cs-produk-marketplace/
 │       └── SKILL.md            # Persona penjual & aturan komunikasi
 ├── src/
-│   ├── bot.js                  # Orkestrator chat, debounce 10s, COD & shareloc
-│   ├── catalogDb.js            # SQLite database (products & cod_orders)
+│   ├── bot.js                  # Orkestrator chat, debounce 10s, COD, foto & shareloc
+│   ├── catalogDb.js            # SQLite database (products, cod_orders, games_kb, laptop_specs_kb)
 │   ├── config.js               # Konfigurasi & deteksi browser Chrome/Edge
 │   ├── index.js                # Entrypoint WhatsApp Client + Express server
 │   ├── knowledge.js            # Hot-reload loader + parser tag internal
 │   ├── llm.js                  # Client 9router (/v1/chat/completions)
 │   ├── logger.js               # File & console logger harian
 │   ├── security.js             # Anti-prompt injection & readability formatter
-│   ├── server.js               # REST API katalog, upload gambar, COD, test-chat
-│   └── sessionStore.js         # Memori percakapan persisten per customer
+│   ├── server.js               # REST API katalog, game, spek PC, COD, WA login & test-chat
+│   ├── sessionStore.js         # Memori percakapan persisten per customer
+│   └── webSearch.js            # Pencarian spek laptop (Bing + Wikipedia)
 ├── test/
 │   └── bot.test.js             # Unit & integration tests (node:test)
 ├── .env.example                # Contoh konfigurasi environment
 ├── LICENSE                     # MIT License
+├── setup.bat                   # Setup otomatis Windows (double-click / CMD)
+├── setup.ps1                   # Setup otomatis Windows (PowerShell)
+├── setup.sh                    # Setup otomatis Linux / macOS
 └── package.json
 ```
 
@@ -458,6 +464,24 @@ Membaca baris log terbaru hari ini (`type=app` untuk semua aktivitas atau `type=
   ]
 }
 ```
+
+---
+
+### 5. Database Game, Konsol, Spek PC & Cache Laptop
+
+- `GET /api/systems` — Daftar konsol/platform beserta jumlah game & minimum spek.
+- `GET /api/games?q=god&system=ps2&page=1&limit=25` — Pencarian game dengan *smart pagination* (`games`, `total`, `page`, `limit`, `totalPages`).
+- `POST /api/games`, `PUT /api/games/:id`, `DELETE /api/games/:id` — Tambah, edit, dan hapus game.
+- `GET /api/kb/pc` & `PUT /api/kb/pc` — Baca dan update JSON rekomendasi spek PC & setting Batocera.
+- `GET /api/laptops` & `DELETE /api/laptops/:id` — Lihat dan hapus cache spek laptop hasil pencarian internet.
+
+---
+
+### 6. Kontrol Login WhatsApp (Web)
+
+- `GET /api/wa/status` — Status koneksi WA, string `qr` (saat `waiting_qr`), serta info akun (`pushname`, `wid`).
+- `POST /api/wa/restart` — Restart koneksi `whatsapp-web.js`.
+- `POST /api/wa/logout` — Logout dari akun WA saat ini dan siapkan QR code baru.
 
 ---
 
