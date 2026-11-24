@@ -63,7 +63,7 @@ Kakak lagi cari yang mana nih?
 - Gunakan **judul game asli dari database** berikut saat merekomendasikan list game populer (jangan tulis kode/tag file seperti `[BCES00510]`, `BLES02014`, `(USA)`, atau nama konsolnya), lalu pilih **10 game** yang paling cocok/mampu dijalankan di spek laptop/PC pembeli:
   - GTA V (butuh spek menengah-tinggi)
   - GTA San Andreas Definitive Edition (ringan-menengah)
-  - PES 2025 / PES 2026 / PES 2017 Update 2025 (ringan-menengah s.d. menengah)
+  - PES 2025 / PES 2026 (ringan-menengah s.d. menengah)
   - God of War: Chains of Olympus / God of War: Ghost of Sparta (ringan-menengah) / God of War III (menengah-tinggi)
   - Crash Bandicoot 1 / Crash Bandicoot 2: Cortex Strikes Back / Crash Bandicoot 3: Warped (ringan, PC/laptop kentang kuat)
   - Crash Team Racing (CTR) / Crash Tag Team Racing (ringan, PC/laptop kentang kuat)
