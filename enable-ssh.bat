@@ -57,8 +57,38 @@ try {
   Write-Host "`n2/4 Menjalankan service sshd & set Automatic..." -ForegroundColor Cyan
   $sshdSvc = Get-Service -Name sshd -ErrorAction Stop
   Set-Service -Name sshd -StartupType Automatic
+
   if ($sshdSvc.Status -ne 'Running') {
-    Start-Service -Name sshd
+    try {
+      Start-Service -Name sshd -ErrorAction Stop
+    } catch {
+      Write-Host 'Start-Service gagal, mencoba perbaikan otomatis host keys & permission C:\ProgramData\ssh...' -ForegroundColor Yellow
+      $sshKeygen = Get-Command ssh-keygen -ErrorAction SilentlyContinue
+      if (-not $sshKeygen -and (Test-Path 'C:\Program Files\OpenSSH\ssh-keygen.exe')) {
+        $sshKeygen = 'C:\Program Files\OpenSSH\ssh-keygen.exe'
+      }
+      if ($sshKeygen) { & $sshKeygen -A 2>$null | Out-Null }
+
+      $fixHost = 'C:\Program Files\OpenSSH\FixHostFilePermissions.ps1'
+      if (Test-Path $fixHost) {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $fixHost -Confirm:$false 2>$null
+      } elseif (Test-Path 'C:\ProgramData\ssh') {
+        & icacls 'C:\ProgramData\ssh' /inheritance:r /grant 'SYSTEM:(OI)(CI)F' /grant 'Administrators:(OI)(CI)F' | Out-Null
+      }
+
+      try {
+        Start-Service -Name sshd -ErrorAction Stop
+      } catch {
+        $sshdExe = (Get-Command sshd -ErrorAction SilentlyContinue).Source
+        if (-not $sshdExe -and (Test-Path 'C:\Windows\System32\OpenSSH\sshd.exe')) { $sshdExe = 'C:\Windows\System32\OpenSSH\sshd.exe' }
+        if (-not $sshdExe -and (Test-Path 'C:\Program Files\OpenSSH\sshd.exe')) { $sshdExe = 'C:\Program Files\OpenSSH\sshd.exe' }
+        if ($sshdExe) {
+          Write-Host 'Menjalankan diagnosa sshd -t:' -ForegroundColor Yellow
+          & $sshdExe -t
+        }
+        throw
+      }
+    }
   }
   $sshdSvc = Get-Service -Name sshd
   Write-Host ('Status sshd: ' + $sshdSvc.Status) -ForegroundColor Green
