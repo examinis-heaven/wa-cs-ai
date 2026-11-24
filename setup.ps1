@@ -79,13 +79,24 @@ if (-not $foundBrowser) {
   Write-Host "Browser ditemukan: $foundBrowser" -ForegroundColor Green
 }
 
-# 3. Install npm dependencies
-Write-Step "3/6 Menginstall package npm (whatsapp-web.js, express, dotenv, qrcode-terminal)..."
+# 3. Cek & Install 9router (global npm package)
+Write-Step "3/7 Mengecek 9router..."
+$routerCmd = Get-Command 9router -ErrorAction SilentlyContinue
+if (-not $routerCmd) {
+  Write-Host "9router belum terpasang. Menginstall 9router secara global..." -ForegroundColor Yellow
+  & npm install -g 9router
+  if ($LASTEXITCODE -ne 0) { throw "Gagal menginstall 9router." }
+  Refresh-Path
+}
+Write-Host "9router siap: $((Get-Command 9router -ErrorAction SilentlyContinue).Source)" -ForegroundColor Green
+
+# 4. Install npm dependencies
+Write-Step "4/7 Menginstall package npm (whatsapp-web.js, express, dotenv, qrcode-terminal)..."
 & npm install
 if ($LASTEXITCODE -ne 0) { throw "npm install gagal." }
 
-# 4. Siapkan .env
-Write-Step "4/6 Menyiapkan file konfigurasi .env..."
+# 5. Siapkan .env
+Write-Step "5/7 Menyiapkan file konfigurasi .env..."
 if (-not (Test-Path ".env")) {
   Copy-Item ".env.example" ".env"
   Write-Host ".env dibuat dari .env.example." -ForegroundColor Yellow
@@ -101,8 +112,8 @@ if (-not (Test-Path ".env")) {
   Write-Host ".env sudah ada, tidak ditimpa." -ForegroundColor Green
 }
 
-# 5. Buat folder kerja & buka port firewall 3001 (jika Administrator)
-Write-Step "5/6 Menyiapkan folder data, logs, sessions..."
+# 6. Buat folder kerja & buka port firewall 3001 (jika Administrator)
+Write-Step "6/7 Menyiapkan folder data, logs, sessions..."
 New-Item -ItemType Directory -Force -Path "data", "data\uploads", "logs", "sessions" | Out-Null
 try {
   $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -119,8 +130,8 @@ try {
   # Abaikan jika cmdlet firewall tidak tersedia
 }
 
-# 6. Jalankan unit & integration tests
-Write-Step "6/6 Menjalankan verifikasi (npm test)..."
+# 7. Jalankan unit & integration tests
+Write-Step "7/7 Menjalankan verifikasi (npm test)..."
 & npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test gagal." }
 
@@ -128,6 +139,6 @@ Write-Host "`n======================================================" -Foregroun
 Write-Host "  Setup Selesai! Semua siap dijalankan." -ForegroundColor Green
 Write-Host "======================================================" -ForegroundColor Green
 Write-Host "Langkah selanjutnya:"
-Write-Host "1. Pastikan 9router berjalan di http://127.0.0.1:20128/v1"
-Write-Host "2. Jalankan bot & dashboard:  npm start"
+Write-Host "1. Jalankan 9router di terminal terpisah:  9router"
+Write-Host "2. Jalankan bot & dashboard:               npm start"
 Write-Host "3. Scan QR WhatsApp di terminal atau di http://localhost:3001/ (tab Login WA)"

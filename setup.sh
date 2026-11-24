@@ -57,11 +57,19 @@ else
 fi
 
 echo ""
-echo "==> 3/6 Menginstall package npm..."
+echo "==> 3/7 Mengecek 9router..."
+if ! command -v 9router >/dev/null 2>&1; then
+  echo "9router belum terpasang. Menginstall 9router secara global..."
+  npm install -g 9router || sudo npm install -g 9router
+fi
+echo "9router siap: $(command -v 9router)"
+
+echo ""
+echo "==> 4/7 Menginstall package npm..."
 npm install
 
 echo ""
-echo "==> 4/6 Menyiapkan file konfigurasi .env..."
+echo "==> 5/7 Menyiapkan file konfigurasi .env..."
 if [ ! -f ".env" ]; then
   cp .env.example .env
   echo ".env dibuat dari .env.example."
@@ -78,11 +86,11 @@ else
 fi
 
 echo ""
-echo "==> 5/6 Menyiapkan folder data, logs, sessions..."
+echo "==> 6/7 Menyiapkan folder data, logs, sessions..."
 mkdir -p data data/uploads logs sessions
 
 echo ""
-echo "==> 6/6 Menjalankan verifikasi (npm test)..."
+echo "==> 7/7 Menjalankan verifikasi (npm test)..."
 npm test
 
 echo ""
@@ -90,6 +98,6 @@ echo "======================================================"
 echo "  Setup Selesai! Semua siap dijalankan."
 echo "======================================================"
 echo "Langkah selanjutnya:"
-echo "1. Pastikan 9router berjalan di http://127.0.0.1:20128/v1"
-echo "2. Jalankan bot & dashboard:  npm start"
+echo "1. Jalankan 9router di terminal terpisah:  9router"
+echo "2. Jalankan bot & dashboard:               npm start"
 echo "3. Scan QR WhatsApp di terminal atau di http://localhost:3001/ (tab Login WA)"
