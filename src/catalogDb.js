@@ -774,20 +774,25 @@ export class CatalogDb {
             .join('\n')
         );
       } else if (/(list|daftar|rekomendasi|game apa|apa aja)/i.test(String(userMessage || ''))) {
-        const sampleGames = this.db
+        const popularGames = this.db
           .prepare(
             `SELECT g.title, g.size_mb, s.min_cpu, s.min_ram, s.min_gpu
              FROM games_kb g
              LEFT JOIN systems_kb s ON g.system_code = s.system_code
-             WHERE g.system_code IN ('psx', 'ps1', 'ps2', 'ps3', 'ps4')
-             ORDER BY CASE g.system_code WHEN 'ps4' THEN 1 WHEN 'ps3' THEN 2 WHEN 'ps2' THEN 3 ELSE 4 END, g.id ASC
-             LIMIT 30`
+             WHERE (
+               g.title LIKE '%GTA%' OR g.title LIKE '%PES%' OR g.title LIKE '%God of War%'
+               OR g.title LIKE '%Crash Bandicoot%' OR g.title LIKE '%Crash Team Racing%'
+               OR g.title LIKE '%Crash Tag Team%' OR g.title LIKE '%Def Jam%'
+               OR g.title LIKE '%Burnout%' OR g.title LIKE '%Tekken%' OR g.title LIKE '%Naruto%'
+             )
+             ORDER BY g.id ASC
+             LIMIT 35`
           )
           .all();
-        if (sampleGames.length > 0) {
-          sections.push('\nDaftar game PS1-PS4 di paket Plug and Play (pilih 5 yang paling populer dan sesuai spek laptop pembeli, tanpa Nintendo):');
+        if (popularGames.length > 0) {
+          sections.push('\nDaftar game populer asli di paket Plug and Play (pilih 5 yang sesuai spek laptop pembeli, bersihkan kode region/ID):');
           sections.push(
-            sampleGames
+            popularGames
               .map((g) => `- ${g.title} | Min spek: CPU ${g.min_cpu || '-'}, RAM ${g.min_ram || '-'}, GPU ${g.min_gpu || '-'}`)
               .join('\n')
           );
