@@ -16,7 +16,7 @@ pause
 exit /b
 
 ###PS_START###
-$ErrorActionPreference = 'Continue'
+$ErrorActionPreference = 'Stop'
 Write-Host '======================================================' -ForegroundColor Green
 Write-Host '  Cek, Install, dan Jalankan OpenSSH Server (sshd)' -ForegroundColor Green
 Write-Host '======================================================' -ForegroundColor Green
@@ -24,37 +24,61 @@ Write-Host '======================================================' -ForegroundC
 try {
   Write-Host "`n1/4 Mengecek paket OpenSSH Server..." -ForegroundColor Cyan
   $svc = Get-Service -Name sshd -ErrorAction SilentlyContinue
-  $cap = Get-WindowsCapability -Online -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'OpenSSH.Server*' } | Select-Object -First 1
 
-  if (-not $svc -and (-not $cap -or $cap.State -ne 'Installed')) {
-    Write-Host 'OpenSSH Server belum terpasang. Menginstall OpenSSH.Server~~~~0.0.1.0...' -ForegroundColor Yellow
-    Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0 | Out-Null
-    Write-Host 'OpenSSH Server berhasil diinstall.' -ForegroundColor Green
+  if (-not $svc) {
+    Write-Host 'Service sshd belum ada. Menginstall OpenSSH Server...' -ForegroundColor Yellow
+    $installed = $false
+    try {
+      Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0 -ErrorAction Stop | Out-Null
+      $installed = $true
+      Write-Host 'OpenSSH Server berhasil diinstall via Windows Capability.' -ForegroundColor Green
+    } catch {
+      Write-Host ('Add-WindowsCapability gagal: ' + $_.Exception.Message) -ForegroundColor Yellow
+      if (Get-Command winget -ErrorAction SilentlyContinue) {
+        Write-Host 'Mencoba fallback install via winget (Microsoft.OpenSSH.Beta)...' -ForegroundColor Yellow
+        $ErrorActionPreference = 'Continue'
+        & winget install -e --id Microsoft.OpenSSH.Beta --accept-source-agreements --accept-package-agreements
+        $ErrorActionPreference = 'Stop'
+        $installScript = 'C:\Program Files\OpenSSH\install-sshd.ps1'
+        if (Test-Path $installScript) {
+          & powershell -NoProfile -ExecutionPolicy Bypass -File $installScript
+        }
+        $installed = [bool](Get-Service -Name sshd -ErrorAction SilentlyContinue)
+      }
+    }
+
+    if (-not $installed -and -not (Get-Service -Name sshd -ErrorAction SilentlyContinue)) {
+      throw 'Gagal menginstall OpenSSH Server. Pastikan Windows Update aktif atau install OpenSSH Server di Settings > System > Optional features.'
+    }
   } else {
     Write-Host 'OpenSSH Server sudah terpasang.' -ForegroundColor Green
   }
 
   Write-Host "`n2/4 Menjalankan service sshd & set Automatic..." -ForegroundColor Cyan
+  $sshdSvc = Get-Service -Name sshd -ErrorAction Stop
   Set-Service -Name sshd -StartupType Automatic
-  if ((Get-Service -Name sshd).Status -ne 'Running') {
+  if ($sshdSvc.Status -ne 'Running') {
     Start-Service -Name sshd
   }
-  Write-Host ('Status sshd: ' + (Get-Service -Name sshd).Status) -ForegroundColor Green
+  $sshdSvc = Get-Service -Name sshd
+  Write-Host ('Status sshd: ' + $sshdSvc.Status) -ForegroundColor Green
 
-  Write-Host "`n3/4 Mengecek Firewall port 22..." -ForegroundColor Cyan
+  Write-Host "`n3/4 Mengecek Firewall port 22 (Profile Any)..." -ForegroundColor Cyan
   $fw = Get-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -ErrorAction SilentlyContinue
   if (-not $fw) {
-    New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 | Out-Null
-    Write-Host 'Rule firewall port 22 dibuat.' -ForegroundColor Green
+    New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 -Profile Any | Out-Null
+    Write-Host 'Rule firewall port 22 dibuat (Profile Any).' -ForegroundColor Green
   } else {
-    Enable-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' | Out-Null
-    Write-Host 'Firewall port 22 sudah aktif.' -ForegroundColor Green
+    Set-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -Enabled True -Profile Any | Out-Null
+    Write-Host 'Firewall port 22 diaktifkan (Profile Any).' -ForegroundColor Green
   }
 
   Write-Host "`n4/4 Info koneksi SSH:" -ForegroundColor Cyan
   $ips = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | Select-Object -ExpandProperty IPAddress) -join ', '
-  Write-Host ('Username : ' + $env:USERNAME) -ForegroundColor White
-  Write-Host ('IP LAN   : ' + $ips) -ForegroundColor White
+  $local22 = Test-NetConnection -ComputerName 127.0.0.1 -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue
+  Write-Host ('Username      : ' + $env:USERNAME) -ForegroundColor White
+  Write-Host ('IP LAN        : ' + $ips) -ForegroundColor White
+  Write-Host ('Port 22 Lokal : ' + $(if ($local22) { 'OPEN' } else { 'CLOSED' })) -ForegroundColor $(if ($local22) { 'Green' } else { 'Red' })
   Write-Host "`nSelesai! SSH Server siap menerima koneksi di port 22." -ForegroundColor Green
 } catch {
   Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
