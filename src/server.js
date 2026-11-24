@@ -17,10 +17,15 @@ const UPLOADS_DIR = path.resolve(__dirname, '..', 'data', 'uploads');
  *   sessions: import('./sessionStore.js').SessionStore,
  *   catalogDb?: import('./catalogDb.js').CatalogDb,
  *   getWaStatus: () => string,
+ *   waControl?: {
+ *     getInfo: () => { status: string, qr: string | null, user: { pushname?: string, wid?: string } | null, clientId: string, dataPath: string },
+ *     logout: () => Promise<void>,
+ *     restart: () => Promise<void>
+ *   },
  *   logger?: ReturnType<import('./logger.js').createLogger>
  * }} deps
  */
-export function createTestServer({ config, bot, llm, sessions, catalogDb, getWaStatus, logger }) {
+export function createTestServer({ config, bot, llm, sessions, catalogDb, getWaStatus, waControl, logger }) {
   const app = express();
   app.use(express.json({ limit: '5mb' }));
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -165,6 +170,102 @@ export function createTestServer({ config, bot, llm, sessions, catalogDb, getWaS
       return res.status(404).json({ ok: false, error: 'Jadwal COD tidak ditemukan' });
     }
     return res.json({ ok: true });
+  });
+
+  // --- Games & Systems Knowledge Base API ---
+  app.get('/api/systems', (_req, res) => {
+    if (!catalogDb) {
+      return res.status(503).json({ ok: false, error: 'Catalog database tidak aktif' });
+    }
+    return res.json({ ok: true, systems: catalogDb.listSystemsWithGames() });
+  });
+
+  app.get('/api/games', (req, res) => {
+    if (!catalogDb) {
+      return res.status(503).json({ ok: false, error: 'Catalog database tidak aktif' });
+    }
+    const query = typeof req.query.q === 'string' ? req.query.q : '';
+    const system = typeof req.query.system === 'string' ? req.query.system : '';
+    const limit = Number(req.query.limit || 50);
+    return res.json({ ok: true, games: catalogDb.searchGames({ query, system, limit }) });
+  });
+
+  app.post('/api/games', (req, res) => {
+    if (!catalogDb) return res.status(503).json({ ok: false, error: 'Catalog database tidak aktif' });
+    try {
+      const game = catalogDb.createGame(req.body || {});
+      return res.status(201).json({ ok: true, game });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  app.put('/api/games/:id', (req, res) => {
+    if (!catalogDb) return res.status(503).json({ ok: false, error: 'Catalog database tidak aktif' });
+    try {
+      const game = catalogDb.updateGame(Number(req.params.id), req.body || {});
+      if (!game) return res.status(404).json({ ok: false, error: 'Game tidak ditemukan' });
+      return res.json({ ok: true, game });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  app.delete('/api/games/:id', (req, res) => {
+    if (!catalogDb) return res.status(503).json({ ok: false, error: 'Catalog database tidak aktif' });
+    const removed = catalogDb.removeGame(Number(req.params.id));
+    if (!removed) return res.status(404).json({ ok: false, error: 'Game tidak ditemukan' });
+    return res.json({ ok: true });
+  });
+
+  app.get('/api/kb/pc', (_req, res) => {
+    if (!catalogDb) return res.status(503).json({ ok: false, error: 'Catalog database tidak aktif' });
+    return res.json({ ok: true, kb: catalogDb.getPcKb() });
+  });
+
+  app.put('/api/kb/pc', (req, res) => {
+    if (!catalogDb) return res.status(503).json({ ok: false, error: 'Catalog database tidak aktif' });
+    try {
+      const kb = catalogDb.savePcKb(req.body?.kb ?? req.body);
+      return res.json({ ok: true, kb });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  // --- WhatsApp Login & Session Control ---
+  app.get('/api/wa/status', (_req, res) => {
+    if (waControl && typeof waControl.getInfo === 'function') {
+      return res.json({ ok: true, ...waControl.getInfo() });
+    }
+    return res.json({
+      ok: true,
+      status: getWaStatus(),
+      qr: null,
+      user: null,
+      clientId: config.wwebjsClientId,
+      dataPath: config.wwebjsDataPath,
+    });
+  });
+
+  app.post('/api/wa/logout', async (_req, res) => {
+    if (!waControl?.logout) return res.status(503).json({ ok: false, error: 'Kontrol WA tidak aktif' });
+    try {
+      await waControl.logout();
+      return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  app.post('/api/wa/restart', async (_req, res) => {
+    if (!waControl?.restart) return res.status(503).json({ ok: false, error: 'Kontrol WA tidak aktif' });
+    try {
+      await waControl.restart();
+      return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
   });
 
   app.post('/test-chat', async (req, res) => {

@@ -746,3 +746,71 @@ test('KnowledgeLoader uses SQLite catalog directly (without produk.md) and bot s
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
+
+test('CatalogDb imports game/emulator/PC-spec JSONs and retrieves relevant context for userMessage', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-cs-kb-'));
+  const jsonDir = path.join(tmpDir, 'json');
+  fs.mkdirSync(jsonDir, { recursive: true });
+
+  fs.writeFileSync(
+    path.join(jsonDir, 'all_games_and_min_specs.json'),
+    JSON.stringify({
+      total_games: 2,
+      systems: {
+        ps2: {
+          count: 2,
+          minimum_specs: { cpu: 'Core i3', ram: '4 GB', gpu: 'GTX 750', emulator: 'PCSX2' },
+          games: [
+            { name: 'God_of_War_2.iso', size_mb: 3500, sources: ['batocera'] },
+            { name: 'Downhill_Domination.iso', size_mb: 1800, sources: ['batocera'] },
+          ],
+        },
+      },
+    })
+  );
+  fs.writeFileSync(
+    path.join(jsonDir, 'ready_emulators.json'),
+    JSON.stringify({
+      ready_systems: [{ system: 'ps2', fullname: 'Sony PlayStation 2', hardware: 'console', bios_status: 'BIOS siap' }],
+    })
+  );
+  fs.writeFileSync(
+    path.join(jsonDir, 'batocera_pc_recommendations_kb.json'),
+    JSON.stringify({
+      hardware_tiers: [
+        { tier_id: 'tier_1_kentang', label: 'PC Kentang', hardware_criteria: { cpu: 'Celeron', ram: '4 GB' } },
+      ],
+      general_rules: { fullscreen_no_bezel: { rule: 'No bezel' } },
+    })
+  );
+
+  const catalogDb = new CatalogDb(path.join(tmpDir, 'catalog.db'), { seedIfEmpty: false });
+  try {
+    const res = catalogDb.importProductJsonDir(jsonDir);
+    assert.equal(res.systems, 1);
+    assert.equal(res.games, 2);
+    assert.equal(res.hasPcKb, true);
+
+    const games = catalogDb.searchGames({ query: 'God of War' });
+    assert.equal(games.length, 1);
+    assert.equal(games[0].system_code, 'ps2');
+
+    const promptCtx = catalogDb.formatGameKnowledgeForPrompt('Spek PC RAM 4GB bisa main God of War?');
+    assert.match(promptCtx, /Sony PlayStation 2/);
+    assert.match(promptCtx, /\[ps2\] God of War 2/);
+    assert.match(promptCtx, /Panduan Spek PC & Rekomendasi Setting Batocera/);
+
+    // Verify game CRUD & PC KB save + WA status API
+    const addedGame = catalogDb.createGame({ system_code: 'ps2', title: 'Black', size_mb: 2100 });
+    assert.equal(addedGame.title, 'Black');
+    const updatedGame = catalogDb.updateGame(addedGame.id, { title: 'Black PS2' });
+    assert.equal(updatedGame.title, 'Black PS2');
+    assert.equal(catalogDb.removeGame(addedGame.id), true);
+
+    const savedKb = catalogDb.savePcKb({ hardware_tiers: [{ tier_id: 't1', label: 'Low' }] });
+    assert.equal(savedKb.hardware_tiers[0].label, 'Low');
+  } finally {
+    catalogDb.close();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});

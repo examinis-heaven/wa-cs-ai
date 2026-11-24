@@ -130,7 +130,7 @@ export class CustomerServiceBot {
       };
     }
 
-    const systemPrompt = this.knowledge.getSystemPrompt();
+    const systemPrompt = this.knowledge.getSystemPrompt(cleanText);
     const history = this.sessions.getHistory(chatId);
 
     const rawReply = await this.llm.chat({

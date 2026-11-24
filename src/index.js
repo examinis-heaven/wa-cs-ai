@@ -17,6 +17,14 @@ const { Client, LocalAuth, Location, MessageMedia } = pkg;
 const config = createConfig();
 const logger = createLogger({ dir: config.logDir, level: config.logLevel });
 const catalogDb = new CatalogDb(config.catalogDbPath);
+if (!catalogDb.hasGameKnowledge()) {
+  const imported = catalogDb.importProductJsonDir(path.resolve('product_json'));
+  if (imported.games > 0 || imported.hasPcKb) {
+    logger.log(
+      `[KB] Imported product_json ke SQLite: ${imported.systems} sistem, ${imported.games} game, PC KB=${imported.hasPcKb}`
+    );
+  }
+}
 const knowledge = new KnowledgeLoader(config.skillPath, null, catalogDb);
 const llm = new RouterLLMClient({
   baseUrl: config.routerBaseUrl,
@@ -33,6 +41,7 @@ const sessions = new SessionStore({
 });
 
 let waStatus = 'initializing';
+let latestQr = null;
 
 const client = new Client({
   authStrategy: new LocalAuth({
@@ -75,12 +84,14 @@ const bot = new CustomerServiceBot({
 
 client.on('qr', (qr) => {
   waStatus = 'waiting_qr';
-  logger.log('[WA] QR code baru dibuat. Silakan scan dengan WhatsApp di HP (Perangkat Tertaut).');
+  latestQr = qr;
+  logger.log('[WA] QR code baru dibuat. Silakan scan dengan WhatsApp di HP (Perangkat Tertaut) atau buka Dashboard.');
   qrcode.generate(qr, { small: true });
 });
 
 client.on('authenticated', () => {
   waStatus = 'authenticated';
+  latestQr = null;
   logger.log(
     `[WA] Berhasil login! Session tersimpan di "${config.wwebjsDataPath}" (clientId: ${config.wwebjsClientId}).`
   );
@@ -88,11 +99,13 @@ client.on('authenticated', () => {
 
 client.on('auth_failure', (msg) => {
   waStatus = 'auth_failure';
+  latestQr = null;
   logger.error('[WA] Autentikasi gagal:', msg);
 });
 
 client.on('ready', () => {
   waStatus = 'ready';
+  latestQr = null;
   logger.log('[WA] WhatsApp Client siap menerima pesan CS!');
 });
 
@@ -102,12 +115,45 @@ client.on('change_state', (state) => {
 
 client.on('disconnected', (reason) => {
   waStatus = `disconnected:${reason}`;
+  latestQr = null;
   logger.warn('[WA] Koneksi WhatsApp terputus:', reason);
 });
 
 client.on('message', async (message) => {
   await bot.handleIncomingMessage(message);
 });
+
+const waControl = {
+  getInfo: () => ({
+    status: waStatus,
+    qr: latestQr,
+    user: client.info
+      ? {
+          pushname: client.info.pushname || '',
+          wid: client.info.wid?.user || '',
+        }
+      : null,
+    clientId: config.wwebjsClientId,
+    dataPath: config.wwebjsDataPath,
+  }),
+  logout: async () => {
+    logger.log('[WA] Logout diminta dari dashboard...');
+    waStatus = 'logging_out';
+    latestQr = null;
+    await client.logout().catch(() => {});
+    await client.destroy().catch(() => {});
+    waStatus = 'initializing';
+    client.initialize().catch((err) => logger.error('[WA] Gagal re-init setelah logout:', err));
+  },
+  restart: async () => {
+    logger.log('[WA] Restart client diminta dari dashboard...');
+    waStatus = 'restarting';
+    latestQr = null;
+    await client.destroy().catch(() => {});
+    waStatus = 'initializing';
+    client.initialize().catch((err) => logger.error('[WA] Gagal re-init saat restart:', err));
+  },
+};
 
 const app = createTestServer({
   config,
@@ -116,6 +162,7 @@ const app = createTestServer({
   sessions,
   catalogDb,
   getWaStatus: () => waStatus,
+  waControl,
   logger,
 });
 

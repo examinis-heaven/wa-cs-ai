@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Classic Project — Katalog &amp; COD</title>
+  <title>Classic Project — Panel Toko, Game &amp; WhatsApp</title>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
   <style>
     :root {
       --bg: #070b14;
       --bg-glow: radial-gradient(circle at 10% 8%, rgba(16, 185, 129, 0.16), transparent 40%),
                  radial-gradient(circle at 90% 10%, rgba(56, 189, 248, 0.13), transparent 36%);
-      --card: rgba(15, 23, 42, 0.82);
+      --card: rgba(15, 23, 42, 0.84);
       --surface: rgba(30, 41, 59, 0.55);
       --text: #f8fafc;
       --muted: #94a3b8;
@@ -18,7 +19,6 @@
       --primary: #10b981;
       --primary-hover: #059669;
       --accent: #38bdf8;
-      --warn: #fbbf24;
       --danger: #f87171;
       --ok-bg: rgba(16, 185, 129, 0.15);
       --ok-text: #6ee7b7;
@@ -38,173 +38,81 @@
       line-height: 1.45;
       -webkit-tap-highlight-color: transparent;
     }
-    .container {
-      max-width: 1080px;
-      margin: 0 auto;
-      padding: 18px 14px 56px;
-    }
+    .container { max-width: 1140px; margin: 0 auto; padding: 18px 14px 56px; }
     header {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 18px;
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+      gap: 12px; margin-bottom: 18px;
     }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 11px;
-    }
+    .brand { display: flex; align-items: center; gap: 11px; }
     .brand-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
+      width: 40px; height: 40px; border-radius: 12px;
       background: linear-gradient(135deg, #10b981, #0ea5e9);
-      display: grid;
-      place-items: center;
-      font-weight: 800;
-      color: #022c22;
-      font-size: 1rem;
-      box-shadow: 0 8px 22px rgba(16, 185, 129, 0.25);
-      flex-shrink: 0;
+      display: grid; place-items: center; font-weight: 800; color: #022c22; font-size: 1rem;
+      box-shadow: 0 8px 22px rgba(16, 185, 129, 0.25); flex-shrink: 0;
     }
     h1 { margin: 0; font-size: 1.2rem; letter-spacing: -0.02em; }
     .subtitle { margin: 1px 0 0; color: var(--muted); font-size: 0.8rem; }
-    .header-right {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
+    .header-right { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     .pill {
-      background: var(--card);
-      border: 1px solid var(--border);
-      padding: 6px 11px;
-      border-radius: 999px;
-      font-size: 0.78rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
+      background: var(--card); border: 1px solid var(--border); padding: 6px 11px;
+      border-radius: 999px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 6px;
     }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: #64748b; }
     .dot.live { background: #10b981; box-shadow: 0 0 8px #10b981; }
 
     .stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin-bottom: 16px;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;
     }
-    @media (max-width: 700px) {
-      .stats { grid-template-columns: repeat(2, 1fr); }
-    }
+    @media (max-width: 700px) { .stats { grid-template-columns: repeat(2, 1fr); } }
     .stat-card {
-      background: var(--card);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 13px 14px;
+      background: var(--card); backdrop-filter: blur(12px); border: 1px solid var(--border);
+      border-radius: 14px; padding: 13px 14px;
     }
     .stat-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
     .stat-value { font-size: 1.45rem; font-weight: 700; margin-top: 2px; }
 
     .tabs {
-      display: flex;
-      gap: 6px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      padding: 5px;
-      border-radius: 14px;
-      margin-bottom: 16px;
-      overflow-x: auto;
+      display: flex; gap: 6px; background: var(--card); border: 1px solid var(--border);
+      padding: 5px; border-radius: 14px; margin-bottom: 16px; overflow-x: auto;
     }
     .tab-btn {
-      flex: 1;
-      min-width: 110px;
-      border: 0;
-      background: transparent;
-      color: var(--muted);
-      padding: 9px 12px;
-      border-radius: 10px;
-      font: inherit;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      white-space: nowrap;
+      flex: 1; min-width: 115px; border: 0; background: transparent; color: var(--muted);
+      padding: 9px 12px; border-radius: 10px; font: inherit; font-size: 0.84rem;
+      font-weight: 600; cursor: pointer; transition: all 0.2s ease; white-space: nowrap;
     }
     .tab-btn.active {
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(14, 165, 233, 0.16));
-      color: #fff;
-      border: 1px solid rgba(16, 185, 129, 0.32);
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(14, 165, 233, 0.16));
+      color: #fff; border: 1px solid rgba(16, 185, 129, 0.32);
     }
 
     .panel { display: none; }
     .panel.active { display: block; }
 
     .card {
-      background: var(--card);
-      backdrop-filter: blur(14px);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 16px;
-      box-shadow: 0 12px 30px rgba(2, 6, 23, 0.4);
+      background: var(--card); backdrop-filter: blur(14px); border: 1px solid var(--border);
+      border-radius: 16px; padding: 16px; box-shadow: 0 12px 30px rgba(2, 6, 23, 0.4);
     }
     .card-header {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 14px;
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+      gap: 10px; margin-bottom: 14px;
     }
     .card-header h2 { margin: 0; font-size: 1.02rem; }
-
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 14px;
-    }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
     .toolbar input { flex: 1; min-width: 170px; }
-    .toolbar select { width: auto; min-width: 135px; }
+    .toolbar select { width: auto; min-width: 145px; }
 
     input, select, textarea {
-      width: 100%;
-      padding: 9px 11px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      font: inherit;
-      font-size: 0.88rem;
-      background: rgba(2, 6, 23, 0.6);
-      color: var(--text);
-      outline: none;
+      width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 10px;
+      font: inherit; font-size: 0.88rem; background: rgba(2, 6, 23, 0.6); color: var(--text); outline: none;
     }
     input:focus, select:focus, textarea:focus { border-color: var(--primary); }
     textarea { resize: vertical; min-height: 58px; }
-    label {
-      display: block;
-      font-size: 0.78rem;
-      font-weight: 600;
-      margin: 10px 0 4px;
-      color: #cbd5e1;
-    }
+    label { display: block; font-size: 0.78rem; font-weight: 600; margin: 10px 0 4px; color: #cbd5e1; }
 
     .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 9px 14px;
-      border-radius: 10px;
-      border: 1px solid transparent;
-      font: inherit;
-      font-size: 0.84rem;
-      font-weight: 600;
-      cursor: pointer;
-      background: var(--primary);
-      color: #022c22;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 9px 14px; border-radius: 10px; border: 1px solid transparent; font: inherit;
+      font-size: 0.84rem; font-weight: 600; cursor: pointer; background: var(--primary); color: #022c22;
       transition: transform 0.12s ease, background 0.15s ease;
     }
     .btn:active { transform: scale(0.97); }
@@ -214,196 +122,90 @@
     .btn-danger { background: rgba(248, 113, 113, 0.12); color: var(--danger); border-color: rgba(248, 113, 113, 0.25); }
     .btn-sm { padding: 5px 10px; font-size: 0.78rem; border-radius: 8px; }
 
-    /* Product list: clean responsive cards */
     .product-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 12px;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(295px, 1fr)); gap: 12px;
     }
-    @media (max-width: 480px) {
-      .product-list { grid-template-columns: 1fr; }
-    }
+    @media (max-width: 480px) { .product-list { grid-template-columns: 1fr; } }
     .prod-item {
-      background: rgba(2, 6, 23, 0.45);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      transition: border-color 0.15s ease, transform 0.15s ease;
+      background: rgba(2, 6, 23, 0.45); border: 1px solid var(--border); border-radius: 14px;
+      padding: 12px; display: flex; flex-direction: column; gap: 10px;
     }
-    .prod-item:hover { border-color: rgba(16, 185, 129, 0.35); transform: translateY(-2px); }
     .prod-top { display: flex; gap: 11px; align-items: center; }
     .thumb {
-      width: 56px;
-      height: 56px;
-      border-radius: 11px;
-      background: #0f172a;
-      border: 1px solid var(--border);
-      flex-shrink: 0;
-      display: grid;
-      place-items: center;
-      overflow: hidden;
-      color: #475569;
+      width: 54px; height: 54px; border-radius: 11px; background: #0f172a;
+      border: 1px solid var(--border); flex-shrink: 0; display: grid; place-items: center; overflow: hidden; color: #475569;
     }
     .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .prod-title { font-weight: 700; font-size: 0.92rem; }
     .prod-price { color: var(--ok-text); font-weight: 700; font-size: 0.9rem; margin-top: 2px; }
     .prod-bottom {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      padding-top: 8px;
-      border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      padding-top: 8px; border-top: 1px solid var(--border);
     }
 
     .badge {
-      display: inline-block;
-      padding: 3px 9px;
-      border-radius: 999px;
-      font-size: 0.72rem;
-      font-weight: 700;
-      white-space: nowrap;
+      display: inline-block; padding: 3px 9px; border-radius: 999px;
+      font-size: 0.72rem; font-weight: 700; white-space: nowrap;
     }
     .badge-ok { background: var(--ok-bg); color: var(--ok-text); }
     .badge-out { background: var(--out-bg); color: var(--out-text); }
     .badge-wait { background: var(--wait-bg); color: var(--wait-text); }
     .cat-tag {
-      display: inline-block;
-      font-size: 0.7rem;
-      color: var(--accent);
-      background: rgba(56, 189, 248, 0.12);
-      padding: 1px 7px;
-      border-radius: 6px;
+      display: inline-block; font-size: 0.7rem; color: var(--accent);
+      background: rgba(56, 189, 248, 0.12); padding: 1px 7px; border-radius: 6px;
     }
     .stock-ctrl {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(15, 23, 42, 0.8);
-      padding: 3px 5px;
-      border-radius: 9px;
-      border: 1px solid var(--border);
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(15, 23, 42, 0.8); padding: 3px 5px; border-radius: 9px; border: 1px solid var(--border);
     }
     .stock-num { min-width: 22px; text-align: center; font-weight: 700; font-size: 0.84rem; }
     .muted { color: var(--muted); font-size: 0.78rem; }
 
-    /* COD layout */
-    .cod-grid {
-      display: grid;
-      grid-template-columns: 360px 1fr;
-      gap: 16px;
-      align-items: start;
-    }
-    @media (max-width: 860px) {
-      .cod-grid { grid-template-columns: 1fr; }
-    }
+    .two-col { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
+    @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }
     .stk-banner {
-      background: rgba(16, 185, 129, 0.1);
-      border: 1px solid rgba(16, 185, 129, 0.25);
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-size: 0.82rem;
-      color: var(--ok-text);
-      margin-bottom: 10px;
+      background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 10px; padding: 10px 12px; font-size: 0.82rem; color: var(--ok-text); margin-bottom: 10px;
     }
-    .cod-item {
-      background: rgba(2, 6, 23, 0.45);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 10px;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
+    .list-row {
+      background: rgba(2, 6, 23, 0.45); border: 1px solid var(--border); border-radius: 12px;
+      padding: 11px 12px; margin-bottom: 8px; display: flex; flex-wrap: wrap;
+      justify-content: space-between; align-items: center; gap: 10px;
     }
 
-    /* Modal */
+    .qr-box {
+      display: inline-flex; flex-direction: column; align-items: center; gap: 10px;
+      padding: 16px; background: #fff; color: #0f172a; border-radius: 14px; margin-top: 10px;
+    }
     .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(2, 6, 23, 0.72);
-      backdrop-filter: blur(6px);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      z-index: 40;
+      position: fixed; inset: 0; background: rgba(2, 6, 23, 0.72); backdrop-filter: blur(6px);
+      display: none; align-items: center; justify-content: center; padding: 16px; z-index: 40;
     }
     .modal-backdrop.open { display: flex; }
     .modal-card {
-      width: 100%;
-      max-width: 440px;
-      max-height: 92vh;
-      overflow-y: auto;
-      background: #0f172a;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 18px;
-      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+      width: 100%; max-width: 440px; max-height: 92vh; overflow-y: auto;
+      background: #0f172a; border: 1px solid var(--border); border-radius: 16px; padding: 18px;
     }
     .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .img-upload-box {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      margin-top: 6px;
-      padding: 8px;
-      background: var(--surface);
-      border: 1px dashed var(--border);
-      border-radius: 10px;
+      display: flex; gap: 10px; align-items: center; margin-top: 6px; padding: 8px;
+      background: var(--surface); border: 1px dashed var(--border); border-radius: 10px;
     }
     .img-preview {
-      width: 56px;
-      height: 56px;
-      border-radius: 9px;
-      background: #020617;
-      border: 1px solid var(--border);
-      display: grid;
-      place-items: center;
-      font-size: 0.7rem;
-      color: var(--muted);
-      overflow: hidden;
-      flex-shrink: 0;
+      width: 56px; height: 56px; border-radius: 9px; background: #020617; border: 1px solid var(--border);
+      display: grid; place-items: center; font-size: 0.7rem; color: var(--muted); overflow: hidden; flex-shrink: 0;
     }
     .img-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .checkbox-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 12px;
-      font-size: 0.84rem;
-      cursor: pointer;
-    }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.84rem; cursor: pointer; }
     .checkbox-row input { width: auto; accent-color: var(--primary); }
 
     .chat-reply {
-      margin-top: 12px;
-      padding: 12px;
-      background: rgba(2, 6, 23, 0.65);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      white-space: pre-wrap;
-      font-size: 0.88rem;
-      display: none;
+      margin-top: 12px; padding: 12px; background: rgba(2, 6, 23, 0.65); border: 1px solid var(--border);
+      border-radius: 10px; white-space: pre-wrap; font-size: 0.88rem; display: none;
     }
     .toast {
-      position: fixed;
-      right: 16px;
-      bottom: 16px;
-      background: #10b981;
-      color: #022c22;
-      font-weight: 700;
-      padding: 10px 16px;
-      border-radius: 10px;
-      font-size: 0.84rem;
-      display: none;
-      z-index: 60;
-      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+      position: fixed; right: 16px; bottom: 16px; background: #10b981; color: #022c22; font-weight: 700;
+      padding: 10px 16px; border-radius: 10px; font-size: 0.84rem; display: none; z-index: 60;
     }
   </style>
 </head>
@@ -414,7 +216,7 @@
         <div class="brand-icon">CP</div>
         <div>
           <h1>Classic Project</h1>
-          <p class="subtitle">Katalog SQLite, Jadwal COD STK &amp; CS AI</p>
+          <p class="subtitle">Panel Produk, Game, Spek PC, COD STK &amp; Login WA</p>
         </div>
       </div>
       <div class="header-right">
@@ -425,27 +227,29 @@
 
     <section class="stats">
       <div class="stat-card">
-        <div class="stat-label">Total Produk</div>
-        <div class="stat-value" id="statTotal">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Stok Tersedia</div>
+        <div class="stat-label">Produk Ready</div>
         <div class="stat-value" id="statReady" style="color:var(--ok-text);">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Stok Habis</div>
-        <div class="stat-value" id="statEmpty" style="color:var(--out-text);">0</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">COD Menunggu</div>
         <div class="stat-value" id="statCod" style="color:var(--wait-text);">0</div>
       </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Game DB</div>
+        <div class="stat-value" id="statGames" style="color:var(--accent);">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Konsol Aktif</div>
+        <div class="stat-value" id="statSystems">0</div>
+      </div>
     </section>
 
     <nav class="tabs" role="tablist">
       <button class="tab-btn active" type="button" onclick="switchTab('katalog', this)">Katalog Produk</button>
-      <button class="tab-btn" type="button" onclick="switchTab('cod', this)">Jadwal COD (STK)</button>
-      <button class="tab-btn" type="button" onclick="switchTab('uji', this)">Uji CS AI</button>
+      <button class="tab-btn" type="button" onclick="switchTab('cod', this)">Jadwal COD</button>
+      <button class="tab-btn" type="button" onclick="switchTab('games', this)">Game &amp; Konsol</button>
+      <button class="tab-btn" type="button" onclick="switchTab('pckb', this)">Spek PC &amp; Setting</button>
+      <button class="tab-btn" type="button" onclick="switchTab('wa', this)">Login WA &amp; Uji AI</button>
     </nav>
 
     <!-- TAB 1: KATALOG -->
@@ -469,50 +273,28 @@
 
     <!-- TAB 2: JADWAL COD STK -->
     <section id="tab-cod" class="panel">
-      <div class="cod-grid">
+      <div class="two-col">
         <div class="card">
-          <div class="card-header">
-            <h2>Form COD Tempat STK</h2>
-          </div>
-          <div class="stk-banner">
-            📍 Lokasi COD: <strong>STK Sedulur Tunggal Kopi (STK KUSBANG)</strong>
-          </div>
+          <div class="card-header"><h2>Form COD Tempat STK</h2></div>
+          <div class="stk-banner">📍 Lokasi COD: <strong>STK Sedulur Tunggal Kopi (STK KUSBANG)</strong></div>
           <form id="codForm">
             <label for="cod_product">Pilih Produk *</label>
             <select id="cod_product" required></select>
-
             <div class="row-2">
-              <div>
-                <label for="cod_date">Tanggal COD</label>
-                <input id="cod_date" type="date" required />
-              </div>
-              <div>
-                <label for="cod_time">Jam COD *</label>
-                <input id="cod_time" type="time" required />
-              </div>
+              <div><label for="cod_date">Tanggal COD</label><input id="cod_date" type="date" required /></div>
+              <div><label for="cod_time">Jam COD *</label><input id="cod_time" type="time" required /></div>
             </div>
-
             <div class="row-2">
-              <div>
-                <label for="cod_qty">Jumlah (pcs)</label>
-                <input id="cod_qty" type="number" min="1" value="1" required />
-              </div>
-              <div>
-                <label for="cod_name">Nama Client</label>
-                <input id="cod_name" placeholder="Nama pembeli" required />
-              </div>
+              <div><label for="cod_qty">Jumlah (pcs)</label><input id="cod_qty" type="number" min="1" value="1" required /></div>
+              <div><label for="cod_name">Nama Client</label><input id="cod_name" placeholder="Nama pembeli" required /></div>
             </div>
-
-            <label for="cod_phone">No. WA Client (opsional)</label>
-            <input id="cod_phone" placeholder="Contoh: 08123456789" />
-
-            <label for="cod_notes">Catatan (opsional)</label>
-            <input id="cod_notes" placeholder="Contoh: Tambah stik PS3 1 pcs" />
-
+            <label for="cod_phone">No. WA Client</label>
+            <input id="cod_phone" placeholder="08123456789" />
+            <label for="cod_notes">Catatan</label>
+            <input id="cod_notes" placeholder="Catatan opsional" />
             <button class="btn" type="submit" style="width:100%; margin-top:14px;">Catat Jadwal COD</button>
           </form>
         </div>
-
         <div class="card">
           <div class="card-header">
             <h2>Daftar Client COD (STK)</h2>
@@ -523,20 +305,83 @@
       </div>
     </section>
 
-    <!-- TAB 3: UJI CS AI -->
-    <section id="tab-uji" class="panel">
-      <div class="card" style="max-width:640px;">
+    <!-- TAB 3: GAME & KONSOL -->
+    <section id="tab-games" class="panel">
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header"><h2>Tambah Game ke DB</h2></div>
+          <form id="gameForm">
+            <label for="game_sys">Kode Konsol *</label>
+            <input id="game_sys" placeholder="Contoh: ps2, ps3, gba, switch" required />
+            <label for="game_title">Judul Game *</label>
+            <input id="game_title" placeholder="Contoh: God of War 2" required />
+            <label for="game_size">Ukuran (MB)</label>
+            <input id="game_size" type="number" min="0" step="0.1" value="0" />
+            <button class="btn" type="submit" style="width:100%; margin-top:14px;">Simpan Game</button>
+          </form>
+          <div style="margin-top:18px;">
+            <h3 style="font-size:0.9rem; margin:0 0 8px;">Ringkasan Konsol &amp; Min Spek</h3>
+            <div id="systemsSummary" style="max-height:280px; overflow-y:auto;"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2>Daftar Game di Database</h2></div>
+          <div class="toolbar">
+            <input id="gameSearch" placeholder="Cari judul game (mis. Mario, GTA, PES)..." oninput="debouncedLoadGames()" />
+            <select id="gameSystemFilter" onchange="loadGames()">
+              <option value="">Semua Konsol</option>
+            </select>
+          </div>
+          <div id="gamesList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: SPEK PC & SETTING -->
+    <section id="tab-pckb" class="panel">
+      <div class="card">
         <div class="card-header">
-          <h2>Uji Respons CS AI</h2>
+          <h2>Rekomendasi Spek PC &amp; Setting Batocera (JSON)</h2>
+          <button class="btn btn-sm" type="button" onclick="savePcKb()">Simpan Perubahan KB</button>
         </div>
         <p class="muted" style="margin:0 0 10px;">
-          Coba tanya stok atau buat janji COD (contoh: "Mau beli stik PS4 10 pcs" atau "Mau COD 500 GB jam 19:00 di STK atas nama Budi").
+          Data ini dipakai AI saat pembeli bertanya spek PC/laptop mereka cocok untuk game apa atau cara setting emulator.
         </p>
-        <div style="display:flex; gap:8px;">
-          <input id="testMsg" placeholder="Ketik pesan simulasi pembeli..." onkeydown="if(event.key==='Enter'){sendTestChat();}" />
-          <button class="btn" type="button" onclick="sendTestChat()">Kirim</button>
+        <textarea id="pcKbEditor" style="min-height:420px; font-family: ui-monospace, Consolas, monospace; font-size:0.8rem;"></textarea>
+      </div>
+    </section>
+
+    <!-- TAB 5: LOGIN WA & UJI AI -->
+    <section id="tab-wa" class="panel">
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header">
+            <h2>Status &amp; Login WhatsApp</h2>
+            <button class="btn btn-secondary btn-sm" type="button" onclick="loadWaStatus()">Cek Status</button>
+          </div>
+          <div id="waDetails" class="muted" style="font-size:0.86rem;">Memuat status WhatsApp...</div>
+          <div id="qrWrapper" style="display:none; text-align:center;">
+            <div class="qr-box">
+              <canvas id="qrCanvas"></canvas>
+              <small style="font-weight:600;">Scan di WhatsApp HP &gt; Perangkat Tertaut</small>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;">
+            <button class="btn btn-secondary" type="button" onclick="restartWa()">Reconnect WA</button>
+            <button class="btn btn-danger" type="button" onclick="logoutWa()">Logout / Ganti Akun WA</button>
+          </div>
         </div>
-        <div class="chat-reply" id="testReply"></div>
+        <div class="card">
+          <div class="card-header"><h2>Uji Respons CS AI</h2></div>
+          <p class="muted" style="margin:0 0 10px;">
+            Tes tanya stok, daftar game, spek PC, atau janji COD langsung ke AI dengan data SQLite terbaru.
+          </p>
+          <div style="display:flex; gap:8px;">
+            <input id="testMsg" placeholder="Contoh: PC RAM 4GB i3 bisa main God of War?" onkeydown="if(event.key==='Enter'){sendTestChat();}" />
+            <button class="btn" type="button" onclick="sendTestChat()">Kirim</button>
+          </div>
+          <div class="chat-reply" id="testReply"></div>
+        </div>
       </div>
     </section>
   </div>
@@ -552,29 +397,14 @@
         <input type="hidden" id="productId" />
         <label for="name">Nama Produk *</label>
         <input id="name" placeholder="Contoh: Plug and Play by Classic Project" required />
-
         <div class="row-2">
-          <div>
-            <label for="category">Kategori</label>
-            <input id="category" value="Konsol" />
-          </div>
-          <div>
-            <label for="variant">Varian / Kapasitas</label>
-            <input id="variant" placeholder="Contoh: 500 GB" />
-          </div>
+          <div><label for="category">Kategori</label><input id="category" value="Konsol" /></div>
+          <div><label for="variant">Varian / Kapasitas</label><input id="variant" placeholder="Contoh: 500 GB" /></div>
         </div>
-
         <div class="row-2">
-          <div>
-            <label for="price">Harga (Rp)</label>
-            <input id="price" type="number" min="0" step="1000" value="0" required />
-          </div>
-          <div>
-            <label for="stock">Stok (pcs)</label>
-            <input id="stock" type="number" min="0" step="1" value="1" required />
-          </div>
+          <div><label for="price">Harga (Rp)</label><input id="price" type="number" min="0" step="1000" value="0" required /></div>
+          <div><label for="stock">Stok (pcs)</label><input id="stock" type="number" min="0" step="1" value="1" required /></div>
         </div>
-
         <label>Gambar Produk</label>
         <div class="img-upload-box">
           <div class="img-preview" id="imgPreview">No Img</div>
@@ -583,15 +413,9 @@
             <input id="imageFile" type="file" accept="image/*" style="margin-top:6px; padding:4px; font-size:0.76rem;" onchange="handleFileUpload(event)" />
           </div>
         </div>
-
-        <label for="notes">Catatan untuk CS AI</label>
+        <label for="notes">Catatan untuk AI</label>
         <textarea id="notes" placeholder="Catatan singkat produk"></textarea>
-
-        <label class="checkbox-row">
-          <input id="is_active" type="checkbox" checked />
-          <span>Aktif dijual</span>
-        </label>
-
+        <label class="checkbox-row"><input id="is_active" type="checkbox" checked /><span>Aktif dijual</span></label>
         <div style="display:flex; gap:8px; margin-top:14px;">
           <button class="btn" type="submit" id="submitBtn" style="flex:1;">Simpan Produk</button>
           <button class="btn btn-secondary" type="button" onclick="closeProductModal()">Batal</button>
@@ -605,29 +429,21 @@
   <script>
     let products = [];
     let codOrders = [];
+    let systems = [];
     const PLACEHOLDER_SVG = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
 
     function showToast(msg) {
       const el = document.getElementById('toast');
       el.textContent = msg;
       el.style.display = 'block';
-      if (window.gsap) {
-        gsap.fromTo(el, { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.24, ease: 'power2.out' });
-      }
+      if (window.gsap) gsap.fromTo(el, { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.24 });
       clearTimeout(window.__toastTimer);
       window.__toastTimer = setTimeout(() => { el.style.display = 'none'; }, 2400);
     }
 
-    function formatRp(num) {
-      return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
-    }
-
+    function formatRp(num) { return 'Rp ' + Number(num || 0).toLocaleString('id-ID'); }
     function escapeHtml(str) {
-      return String(str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     function switchTab(name, btn) {
@@ -636,19 +452,14 @@
       btn.classList.add('active');
       const panel = document.getElementById('tab-' + name);
       panel.classList.add('active');
-      if (window.gsap) {
-        gsap.fromTo(panel, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.25, ease: 'power2.out' });
-      }
+      if (window.gsap) gsap.fromTo(panel, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.25 });
+      if (name === 'wa') loadWaStatus();
     }
 
     function updatePreview() {
       const url = document.getElementById('image_url').value.trim();
       const preview = document.getElementById('imgPreview');
-      if (url) {
-        preview.innerHTML = `<img src="${escapeHtml(url)}" alt="preview" onerror="this.parentElement.innerHTML='Invalid'" />`;
-      } else {
-        preview.textContent = 'No Img';
-      }
+      preview.innerHTML = url ? `<img src="${escapeHtml(url)}" alt="preview" onerror="this.parentElement.innerHTML='Invalid'" />` : 'No Img';
     }
 
     async function handleFileUpload(event) {
@@ -657,18 +468,12 @@
       const reader = new FileReader();
       reader.onload = async () => {
         const res = await fetch('/api/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ dataUrl: reader.result })
         });
         const data = await res.json();
-        if (data.ok) {
-          document.getElementById('image_url').value = data.url;
-          updatePreview();
-          showToast('Gambar berhasil diupload');
-        } else {
-          showToast(data.error || 'Upload gagal');
-        }
+        if (data.ok) { document.getElementById('image_url').value = data.url; updatePreview(); showToast('Gambar diupload'); }
+        else showToast(data.error || 'Upload gagal');
       };
       reader.readAsDataURL(file);
     }
@@ -702,19 +507,13 @@
       }
       updatePreview();
       document.getElementById('productModal').classList.add('open');
-      if (window.gsap) {
-        gsap.fromTo('#productModalCard', { scale: 0.94, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.22, ease: 'back.out(1.4)' });
-      }
+      if (window.gsap) gsap.fromTo('#productModalCard', { scale: 0.94, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.22 });
     }
-
-    function closeProductModal() {
-      document.getElementById('productModal').classList.remove('open');
-    }
+    function closeProductModal() { document.getElementById('productModal').classList.remove('open'); }
 
     async function loadHealth() {
       try {
-        const res = await fetch('/health');
-        const data = await res.json();
+        const data = await (await fetch('/health')).json();
         const status = data.whatsapp || 'unknown';
         document.getElementById('waPill').textContent = 'WA: ' + status;
         document.getElementById('waDot').classList.toggle('live', status === 'ready');
@@ -724,48 +523,151 @@
       }
     }
 
+    async function loadWaStatus() {
+      try {
+        const data = await (await fetch('/api/wa/status')).json();
+        const details = document.getElementById('waDetails');
+        const qrWrap = document.getElementById('qrWrapper');
+        const userText = data.user ? `${escapeHtml(data.user.pushname || '-')} (${escapeHtml(data.user.wid || '-')})` : 'Belum terhubung';
+        details.innerHTML = `
+          <div>Status: <strong>${escapeHtml(data.status)}</strong></div>
+          <div>Akun WA: <strong>${userText}</strong></div>
+          <div>Session ID: <code>${escapeHtml(data.clientId)}</code> (${escapeHtml(data.dataPath)})</div>
+        `;
+        if (data.qr && window.QRCode) {
+          qrWrap.style.display = 'block';
+          QRCode.toCanvas(document.getElementById('qrCanvas'), data.qr, { width: 220 });
+        } else {
+          qrWrap.style.display = 'none';
+        }
+        document.getElementById('waPill').textContent = 'WA: ' + data.status;
+        document.getElementById('waDot').classList.toggle('live', data.status === 'ready');
+      } catch (err) {
+        document.getElementById('waDetails').textContent = 'Gagal memuat status WA: ' + err.message;
+      }
+    }
+
+    async function logoutWa() {
+      if (!confirm('Logout dari akun WhatsApp saat ini? Anda perlu scan QR baru.')) return;
+      await fetch('/api/wa/logout', { method: 'POST' });
+      showToast('Logout WA diproses, tunggu QR baru...');
+      setTimeout(loadWaStatus, 2500);
+    }
+
+    async function restartWa() {
+      await fetch('/api/wa/restart', { method: 'POST' });
+      showToast('WhatsApp client di-restart');
+      setTimeout(loadWaStatus, 2500);
+    }
+
     async function loadProducts() {
-      const res = await fetch('/api/products');
-      const data = await res.json();
+      const data = await (await fetch('/api/products')).json();
       if (data.ok) {
         products = data.products || [];
-        renderStats();
-        renderProducts();
-        populateCodProducts();
+        renderStats(); renderProducts(); populateCodProducts();
       }
     }
 
     async function loadCodOrders() {
-      const res = await fetch('/api/cod');
-      const data = await res.json();
+      const data = await (await fetch('/api/cod')).json();
+      if (data.ok) { codOrders = data.orders || []; renderStats(); renderCodOrders(); }
+    }
+
+    async function loadSystems() {
+      const data = await (await fetch('/api/systems')).json();
       if (data.ok) {
-        codOrders = data.orders || [];
-        renderStats();
-        renderCodOrders();
+        systems = data.systems || [];
+        const totalGames = systems.reduce((s, x) => s + Number(x.game_count || 0), 0);
+        document.getElementById('statGames').textContent = totalGames.toLocaleString('id-ID');
+        document.getElementById('statSystems').textContent = systems.length;
+
+        const sel = document.getElementById('gameSystemFilter');
+        const cur = sel.value;
+        sel.innerHTML = '<option value="">Semua Konsol (' + systems.length + ')</option>' +
+          systems.map(s => `<option value="${escapeHtml(s.system_code)}">${escapeHtml(s.system_code.toUpperCase())} (${s.game_count})</option>`).join('');
+        sel.value = cur;
+
+        document.getElementById('systemsSummary').innerHTML = systems.map(s => `
+          <div class="list-row" style="padding:8px 10px;">
+            <div>
+              <strong>${escapeHtml(s.system_code.toUpperCase())}</strong> <span class="muted">${escapeHtml(s.fullname)}</span>
+              <div class="muted">Min: ${escapeHtml(s.min_cpu)} | RAM ${escapeHtml(s.min_ram)}</div>
+            </div>
+            <span class="badge badge-ok">${s.game_count}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    let gameTimer;
+    function debouncedLoadGames() { clearTimeout(gameTimer); gameTimer = setTimeout(loadGames, 250); }
+
+    async function loadGames() {
+      const q = document.getElementById('gameSearch').value.trim();
+      const sys = document.getElementById('gameSystemFilter').value;
+      const params = new URLSearchParams({ q, system: sys, limit: '60' });
+      const data = await (await fetch('/api/games?' + params.toString())).json();
+      const box = document.getElementById('gamesList');
+      const list = data.games || [];
+      if (list.length === 0) {
+        box.innerHTML = '<div class="muted">Tidak ada game ditemukan.</div>';
+        return;
+      }
+      box.innerHTML = list.map(g => `
+        <div class="list-row">
+          <div>
+            <span class="cat-tag">${escapeHtml(g.system_code.toUpperCase())}</span>
+            <strong>${escapeHtml(g.title)}</strong>
+            <span class="muted">(${g.size_mb} MB)</span>
+          </div>
+          <button class="btn btn-danger btn-sm" type="button" onclick="deleteGame(${g.id})">Hapus</button>
+        </div>
+      `).join('');
+    }
+
+    async function deleteGame(id) {
+      if (!confirm('Hapus game ini dari database?')) return;
+      const data = await (await fetch('/api/games/' + id, { method: 'DELETE' })).json();
+      if (data.ok) { showToast('Game dihapus'); loadSystems(); loadGames(); }
+    }
+
+    async function loadPcKb() {
+      const data = await (await fetch('/api/kb/pc')).json();
+      if (data.ok && data.kb) {
+        document.getElementById('pcKbEditor').value = JSON.stringify(data.kb, null, 2);
+      }
+    }
+
+    async function savePcKb() {
+      try {
+        const parsed = JSON.parse(document.getElementById('pcKbEditor').value);
+        const res = await fetch('/api/kb/pc', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kb: parsed })
+        });
+        const data = await res.json();
+        showToast(data.ok ? 'KB Spek PC disimpan' : (data.error || 'Gagal simpan'));
+      } catch (err) {
+        showToast('JSON tidak valid: ' + err.message);
       }
     }
 
     function renderStats() {
-      const total = products.length;
       const ready = products.filter(p => p.is_active === 1 && p.stock > 0).length;
       const waitingCod = codOrders.filter(o => o.status === 'menunggu').length;
-      document.getElementById('statTotal').textContent = total;
       document.getElementById('statReady').textContent = ready;
-      document.getElementById('statEmpty').textContent = total - ready;
       document.getElementById('statCod').textContent = waitingCod;
     }
 
     function populateCodProducts() {
       const sel = document.getElementById('cod_product');
       const available = products.filter(p => p.is_active === 1 && p.stock > 0);
-      if (available.length === 0) {
-        sel.innerHTML = '<option value="">Tidak ada produk tersedia</option>';
-        return;
-      }
-      sel.innerHTML = available.map(p => {
-        const label = p.variant ? `${p.name} (${p.variant})` : p.name;
-        return `<option value="${escapeHtml(label)}">${escapeHtml(label)} — ${formatRp(p.price)}</option>`;
-      }).join('');
+      sel.innerHTML = available.length === 0
+        ? '<option value="">Tidak ada produk tersedia</option>'
+        : available.map(p => {
+            const label = p.variant ? `${p.name} (${p.variant})` : p.name;
+            return `<option value="${escapeHtml(label)}">${escapeHtml(label)} — ${formatRp(p.price)}</option>`;
+          }).join('');
     }
 
     function renderProducts() {
@@ -778,23 +680,13 @@
         if (!q) return true;
         return [p.name, p.category, p.variant, p.notes].some(v => String(v || '').toLowerCase().includes(q));
       });
-
       const list = document.getElementById('productList');
-      if (filtered.length === 0) {
-        list.innerHTML = '<div class="muted">Belum ada produk yang sesuai.</div>';
-        return;
-      }
-
+      if (filtered.length === 0) { list.innerHTML = '<div class="muted">Belum ada produk.</div>'; return; }
       list.innerHTML = filtered.map(p => {
         const available = p.is_active === 1 && p.stock > 0;
-        const badge = available
-          ? '<span class="badge badge-ok">TERSEDIA</span>'
-          : '<span class="badge badge-out">HABIS</span>';
+        const badge = available ? '<span class="badge badge-ok">TERSEDIA</span>' : '<span class="badge badge-out">HABIS</span>';
         const variantLine = p.variant ? ` (${escapeHtml(p.variant)})` : '';
-        const thumbHtml = p.image_url
-          ? `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" />`
-          : PLACEHOLDER_SVG;
-
+        const thumbHtml = p.image_url ? `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" />` : PLACEHOLDER_SVG;
         return `
           <div class="prod-item">
             <div class="prod-top">
@@ -803,8 +695,7 @@
                 <div class="prod-title">${escapeHtml(p.name)}${variantLine}</div>
                 <div class="prod-price">${formatRp(p.price)}</div>
                 <div style="margin-top:3px; display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                  <span class="cat-tag">${escapeHtml(p.category)}</span>
-                  ${badge}
+                  <span class="cat-tag">${escapeHtml(p.category)}</span> ${badge}
                 </div>
               </div>
             </div>
@@ -819,33 +710,27 @@
                 <button class="btn btn-danger btn-sm" type="button" onclick="deleteProduct(${p.id})">Hapus</button>
               </div>
             </div>
-          </div>
-        `;
+          </div>`;
       }).join('');
     }
 
     function renderCodOrders() {
       const box = document.getElementById('codList');
-      if (codOrders.length === 0) {
-        box.innerHTML = '<div class="muted">Belum ada jadwal COD tercatat.</div>';
-        return;
-      }
+      if (codOrders.length === 0) { box.innerHTML = '<div class="muted">Belum ada jadwal COD.</div>'; return; }
       box.innerHTML = codOrders.map(o => {
         const badgeClass = o.status === 'selesai' ? 'badge-ok' : o.status === 'batal' ? 'badge-out' : 'badge-wait';
         const phoneDigits = String(o.customer_phone || '').replace(/\D/g, '');
         const waDigits = phoneDigits.startsWith('0') ? '62' + phoneDigits.slice(1) : phoneDigits;
         const canWaLink = waDigits.length >= 9 && !String(o.customer_phone || '').includes('@lid');
         const phonePart = o.customer_phone ? ` • ${escapeHtml(o.customer_phone)}` : '';
-        const notePart = o.notes ? `<div class="muted">Catatan: ${escapeHtml(o.notes)}</div>` : '';
         return `
-          <div class="cod-item">
+          <div class="list-row">
             <div>
               <div><strong>${escapeHtml(o.customer_name)}</strong>${phonePart}</div>
               <div class="muted" style="color:#e2e8f0; margin-top:2px;">
                 ${escapeHtml(o.product_name)} × ${o.qty} • <strong>${escapeHtml(o.cod_date)} ${escapeHtml(o.cod_time)}</strong>
               </div>
               <div class="muted">📍 ${escapeHtml(o.location)}</div>
-              ${notePart}
             </div>
             <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
               <span class="badge ${badgeClass}">${escapeHtml(o.status.toUpperCase())}</span>
@@ -854,55 +739,31 @@
               ${o.status === 'menunggu' ? `<button class="btn btn-secondary btn-sm" type="button" onclick="setCodStatus(${o.id}, 'batal')">Batal</button>` : ''}
               <button class="btn btn-danger btn-sm" type="button" onclick="deleteCodOrder(${o.id})">Hapus</button>
             </div>
-          </div>
-        `;
+          </div>`;
       }).join('');
     }
 
     async function adjustStock(id, delta) {
-      const res = await fetch('/api/products/' + id + '/stock', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ delta })
-      });
-      const data = await res.json();
-      if (data.ok) {
-        showToast('Stok diperbarui (' + data.product.stock + ' pcs)');
-        await loadProducts();
-      }
+      const data = await (await fetch('/api/products/' + id + '/stock', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ delta })
+      })).json();
+      if (data.ok) { showToast('Stok: ' + data.product.stock); loadProducts(); }
     }
-
     async function deleteProduct(id) {
       if (!confirm('Hapus produk ini?')) return;
-      const res = await fetch('/api/products/' + id, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.ok) {
-        showToast('Produk dihapus');
-        await loadProducts();
-      }
+      const data = await (await fetch('/api/products/' + id, { method: 'DELETE' })).json();
+      if (data.ok) { showToast('Produk dihapus'); loadProducts(); }
     }
-
     async function setCodStatus(id, status) {
-      const res = await fetch('/api/cod/' + id + '/status', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-      });
-      const data = await res.json();
-      if (data.ok) {
-        showToast('Status COD: ' + status);
-        await loadCodOrders();
-      }
+      const data = await (await fetch('/api/cod/' + id + '/status', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status })
+      })).json();
+      if (data.ok) { showToast('Status COD: ' + status); loadCodOrders(); }
     }
-
     async function deleteCodOrder(id) {
-      if (!confirm('Hapus jadwal COD ini?')) return;
-      const res = await fetch('/api/cod/' + id, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.ok) {
-        showToast('Jadwal COD dihapus');
-        await loadCodOrders();
-      }
+      if (!confirm('Hapus jadwal COD?')) return;
+      const data = await (await fetch('/api/cod/' + id, { method: 'DELETE' })).json();
+      if (data.ok) { showToast('Jadwal COD dihapus'); loadCodOrders(); }
     }
 
     document.getElementById('productForm').addEventListener('submit', async (e) => {
@@ -918,19 +779,11 @@
         notes: document.getElementById('notes').value.trim(),
         is_active: document.getElementById('is_active').checked ? 1 : 0,
       };
-      const res = await fetch(id ? '/api/products/' + id : '/api/products', {
-        method: id ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        showToast(id ? 'Produk diperbarui' : 'Produk ditambahkan');
-        closeProductModal();
-        await loadProducts();
-      } else {
-        showToast(data.error || 'Gagal menyimpan');
-      }
+      const data = await (await fetch(id ? '/api/products/' + id : '/api/products', {
+        method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      })).json();
+      if (data.ok) { showToast(id ? 'Produk diperbarui' : 'Produk ditambahkan'); closeProductModal(); loadProducts(); }
+      else showToast(data.error || 'Gagal');
     });
 
     document.getElementById('codForm').addEventListener('submit', async (e) => {
@@ -944,41 +797,40 @@
         customer_phone: document.getElementById('cod_phone').value.trim(),
         notes: document.getElementById('cod_notes').value.trim(),
       };
-      const res = await fetch('/api/cod', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        showToast('Jadwal COD di STK dicatat!');
-        document.getElementById('cod_name').value = '';
-        document.getElementById('cod_phone').value = '';
-        document.getElementById('cod_notes').value = '';
-        await loadCodOrders();
-      } else {
-        showToast(data.error || 'Gagal mencatat COD');
-      }
+      const data = await (await fetch('/api/cod', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      })).json();
+      if (data.ok) { showToast('Jadwal COD dicatat'); e.target.reset(); document.getElementById('cod_date').value = new Date().toISOString().slice(0, 10); loadCodOrders(); }
+      else showToast(data.error || 'Gagal');
+    });
+
+    document.getElementById('gameForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        system_code: document.getElementById('game_sys').value.trim(),
+        title: document.getElementById('game_title').value.trim(),
+        size_mb: Number(document.getElementById('game_size').value || 0),
+      };
+      const data = await (await fetch('/api/games', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      })).json();
+      if (data.ok) { showToast('Game ditambahkan'); e.target.reset(); loadSystems(); loadGames(); }
+      else showToast(data.error || 'Gagal');
     });
 
     async function sendTestChat() {
-      const input = document.getElementById('testMsg');
+      const msg = document.getElementById('testMsg').value.trim();
       const box = document.getElementById('testReply');
-      const message = input.value.trim();
-      if (!message) return;
-
+      if (!msg) return;
       box.style.display = 'block';
-      box.textContent = 'Menghubungi CS AI...';
-
+      box.textContent = 'Menghubungi AI...';
       try {
-        const res = await fetch('/test-chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chatId: 'dashboard-test', message }),
-        });
-        const data = await res.json();
+        const data = await (await fetch('/test-chat', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chatId: 'dashboard-test', message: msg })
+        })).json();
         box.textContent = data.ok ? data.reply : ('Error: ' + (data.error || 'gagal'));
-        await loadCodOrders();
+        loadCodOrders();
       } catch (err) {
         box.textContent = 'Error: ' + err.message;
       }
@@ -986,11 +838,10 @@
 
     window.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('cod_date').value = new Date().toISOString().slice(0, 10);
-      await Promise.all([loadHealth(), loadProducts(), loadCodOrders()]);
+      await Promise.all([loadHealth(), loadProducts(), loadCodOrders(), loadSystems(), loadGames(), loadPcKb()]);
       if (window.gsap) {
-        gsap.from('.gsap-header', { y: -14, opacity: 0, duration: 0.45, ease: 'power3.out' });
-        gsap.from('.stat-card', { y: 16, opacity: 0, duration: 0.4, stagger: 0.07, delay: 0.1, ease: 'power2.out' });
-        gsap.from('.tabs', { y: 10, opacity: 0, duration: 0.35, delay: 0.25, ease: 'power2.out' });
+        gsap.from('.gsap-header', { y: -14, opacity: 0, duration: 0.4 });
+        gsap.from('.stat-card', { y: 14, opacity: 0, duration: 0.35, stagger: 0.06, delay: 0.08 });
       }
     });
   </script>

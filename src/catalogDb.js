@@ -72,6 +72,31 @@ function formatRupiah(amount) {
   return `Rp ${Number(amount || 0).toLocaleString('id-ID')}`;
 }
 
+const STOP_WORDS = new Set([
+  'kak', 'halo', 'hai', 'gan', 'bro', 'sis', 'mas', 'mbak', 'ada', 'game', 'games',
+  'main', 'bisa', 'nggak', 'enggak', 'gak', 'ga', 'tidak', 'apa', 'aja', 'saja',
+  'yang', 'yg', 'di', 'ke', 'dari', 'untuk', 'buat', 'mau', 'tanya', 'dong', 'nih',
+  'ya', 'kah', 'spek', 'spec', 'pc', 'laptop', 'ram', 'cpu', 'gpu', 'vga', 'setting',
+  'settingan', 'rekomendasi', 'konsol', 'emulator', 'daftar', 'list', 'punya', 'berapa',
+]);
+
+function cleanGameTitle(rawName) {
+  return String(rawName || '')
+    .replace(/\.[a-z0-9]{2,5}$/i, '')
+    .replace(/[_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractSearchTokens(text) {
+  const words = String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 2 && !STOP_WORDS.has(w));
+  return [...new Set(words)].slice(0, 6);
+}
+
 /**
  * SQLite-backed product & stock catalog using Node's built-in `node:sqlite`.
  */
@@ -113,6 +138,35 @@ export class CatalogDb {
         notes TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS systems_kb (
+        system_code TEXT PRIMARY KEY,
+        fullname TEXT NOT NULL DEFAULT '',
+        hardware TEXT NOT NULL DEFAULT '',
+        game_count INTEGER NOT NULL DEFAULT 0,
+        min_cpu TEXT NOT NULL DEFAULT '',
+        min_ram TEXT NOT NULL DEFAULT '',
+        min_gpu TEXT NOT NULL DEFAULT '',
+        emulator TEXT NOT NULL DEFAULT '',
+        bios_status TEXT NOT NULL DEFAULT ''
+      );
+
+      CREATE TABLE IF NOT EXISTS games_kb (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        system_code TEXT NOT NULL,
+        title TEXT NOT NULL,
+        raw_name TEXT NOT NULL,
+        size_mb REAL NOT NULL DEFAULT 0,
+        sources TEXT NOT NULL DEFAULT ''
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_games_kb_title ON games_kb(title);
+      CREATE INDEX IF NOT EXISTS idx_games_kb_sys ON games_kb(system_code);
+
+      CREATE TABLE IF NOT EXISTS kb_docs (
+        key TEXT PRIMARY KEY,
+        content TEXT NOT NULL
       );
     `);
 
@@ -341,6 +395,304 @@ export class CatalogDb {
   removeCodOrder(id) {
     const info = this.db.prepare('DELETE FROM cod_orders WHERE id = ?').run(Number(id));
     return info.changes > 0;
+  }
+
+  // --- Games, Systems & PC Recommendations Knowledge Base ---
+
+  /**
+   * Import JSON knowledge files from `product_json/` into SQLite tables.
+   * @param {string} jsonDir
+   * @returns {{ systems: number, games: number, hasPcKb: boolean }}
+   */
+  importProductJsonDir(jsonDir) {
+    const resolvedDir = path.resolve(jsonDir);
+    if (!fs.existsSync(resolvedDir)) {
+      return { systems: 0, games: 0, hasPcKb: false };
+    }
+
+    const gamesPath = path.join(resolvedDir, 'all_games_and_min_specs.json');
+    const emusPath = path.join(resolvedDir, 'ready_emulators.json');
+    const pcKbPath = path.join(resolvedDir, 'batocera_pc_recommendations_kb.json');
+
+    const emuMap = new Map();
+    if (fs.existsSync(emusPath)) {
+      const emusJson = JSON.parse(fs.readFileSync(emusPath, 'utf8'));
+      for (const sys of emusJson.ready_systems || []) {
+        if (sys?.system) {
+          emuMap.set(String(sys.system).toLowerCase(), sys);
+        }
+      }
+    }
+
+    let systemsCount = 0;
+    let gamesCount = 0;
+    let hasPcKb = false;
+
+    this.db.exec('BEGIN');
+    try {
+      if (fs.existsSync(gamesPath)) {
+        const gamesJson = JSON.parse(fs.readFileSync(gamesPath, 'utf8'));
+        const systemsObj = gamesJson.systems || {};
+
+        this.db.exec('DELETE FROM games_kb; DELETE FROM systems_kb;');
+        const insertSys = this.db.prepare(
+          `INSERT INTO systems_kb (system_code, fullname, hardware, game_count, min_cpu, min_ram, min_gpu, emulator, bios_status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        );
+        const insertGame = this.db.prepare(
+          `INSERT INTO games_kb (system_code, title, raw_name, size_mb, sources)
+           VALUES (?, ?, ?, ?, ?)`
+        );
+
+        for (const [rawCode, info] of Object.entries(systemsObj)) {
+          const code = String(rawCode).toLowerCase();
+          const emuMeta = emuMap.get(code);
+          const specs = info?.minimum_specs || {};
+          const gamesList = Array.isArray(info?.games) ? info.games : [];
+
+          insertSys.run(
+            code,
+            emuMeta?.fullname || code.toUpperCase(),
+            emuMeta?.hardware || '',
+            Number(info?.count ?? gamesList.length),
+            String(specs.cpu || ''),
+            String(specs.ram || ''),
+            String(specs.gpu || ''),
+            String(specs.emulator || emuMeta?.default_emulator || ''),
+            String(emuMeta?.bios_status || '')
+          );
+          systemsCount++;
+
+          for (const g of gamesList) {
+            const rawName = String(g?.name || '').trim();
+            if (!rawName) continue;
+            insertGame.run(
+              code,
+              cleanGameTitle(rawName),
+              rawName,
+              Number(g?.size_mb || 0),
+              Array.isArray(g?.sources) ? g.sources.join(',') : ''
+            );
+            gamesCount++;
+          }
+        }
+      }
+
+      if (fs.existsSync(pcKbPath)) {
+        const pcKbRaw = fs.readFileSync(pcKbPath, 'utf8');
+        this.db
+          .prepare('INSERT OR REPLACE INTO kb_docs (key, content) VALUES (?, ?)')
+          .run('pc_recommendations', pcKbRaw);
+        hasPcKb = true;
+      }
+
+      this.db.exec('COMMIT');
+    } catch (err) {
+      this.db.exec('ROLLBACK');
+      throw err;
+    }
+
+    return { systems: systemsCount, games: gamesCount, hasPcKb };
+  }
+
+  /**
+   * Check whether games_kb already has imported rows.
+   */
+  hasGameKnowledge() {
+    const row = this.db.prepare('SELECT COUNT(*) AS count FROM games_kb').get();
+    return Number(row?.count || 0) > 0;
+  }
+
+  /**
+   * List systems that have games (> 0).
+   */
+  listSystemsWithGames() {
+    return this.db
+      .prepare('SELECT * FROM systems_kb WHERE game_count > 0 ORDER BY game_count DESC, system_code ASC')
+      .all();
+  }
+
+  /**
+   * Search games by title or system_code.
+   * @param {{ query?: string, system?: string, limit?: number }} [opts]
+   */
+  searchGames({ query = '', system = '', limit = 30 } = {}) {
+    const safeLimit = Math.max(1, Math.min(Number(limit || 30), 200));
+    const q = String(query || '').trim();
+    const sys = String(system || '').trim().toLowerCase();
+
+    if (sys && q) {
+      return this.db
+        .prepare('SELECT id, system_code, title, raw_name, size_mb FROM games_kb WHERE system_code = ? AND title LIKE ? ORDER BY title ASC LIMIT ?')
+        .all(sys, `%${q}%`, safeLimit);
+    }
+    if (sys) {
+      return this.db
+        .prepare('SELECT id, system_code, title, raw_name, size_mb FROM games_kb WHERE system_code = ? ORDER BY title ASC LIMIT ?')
+        .all(sys, safeLimit);
+    }
+    if (q) {
+      return this.db
+        .prepare('SELECT id, system_code, title, raw_name, size_mb FROM games_kb WHERE title LIKE ? ORDER BY title ASC LIMIT ?')
+        .all(`%${q}%`, safeLimit);
+    }
+    return this.db
+      .prepare('SELECT id, system_code, title, raw_name, size_mb FROM games_kb ORDER BY id DESC LIMIT ?')
+      .all(safeLimit);
+  }
+
+  /**
+   * Add a game to games_kb and update systems_kb count.
+   * @param {{ system_code: string, title: string, size_mb?: number }} input
+   */
+  createGame(input) {
+    const systemCode = String(input?.system_code || '').trim().toLowerCase();
+    const title = String(input?.title || '').trim();
+    if (!systemCode) throw new Error('Kode konsol/sistem wajib diisi');
+    if (!title) throw new Error('Judul game wajib diisi');
+    const sizeMb = Math.max(0, Number(input?.size_mb || 0));
+
+    const info = this.db
+      .prepare('INSERT INTO games_kb (system_code, title, raw_name, size_mb, sources) VALUES (?, ?, ?, ?, ?)')
+      .run(systemCode, title, title, sizeMb, 'manual');
+
+    this.db
+      .prepare(
+        `INSERT INTO systems_kb (system_code, fullname, game_count) VALUES (?, ?, 1)
+         ON CONFLICT(system_code) DO UPDATE SET game_count = (SELECT COUNT(*) FROM games_kb WHERE system_code = ?)`
+      )
+      .run(systemCode, systemCode.toUpperCase(), systemCode);
+
+    return this.db.prepare('SELECT id, system_code, title, raw_name, size_mb FROM games_kb WHERE id = ?').get(Number(info.lastInsertRowid));
+  }
+
+  /**
+   * Update a game in games_kb.
+   * @param {number} id
+   * @param {{ system_code?: string, title?: string, size_mb?: number }} patch
+   */
+  updateGame(id, patch) {
+    const existing = this.db.prepare('SELECT * FROM games_kb WHERE id = ?').get(Number(id));
+    if (!existing) return null;
+    const systemCode = patch.system_code !== undefined ? String(patch.system_code).trim().toLowerCase() : existing.system_code;
+    const title = patch.title !== undefined ? String(patch.title).trim() : existing.title;
+    if (!systemCode || !title) throw new Error('Konsol dan judul game wajib diisi');
+    const sizeMb = patch.size_mb !== undefined ? Math.max(0, Number(patch.size_mb)) : existing.size_mb;
+
+    this.db
+      .prepare('UPDATE games_kb SET system_code = ?, title = ?, size_mb = ? WHERE id = ?')
+      .run(systemCode, title, sizeMb, Number(id));
+    return this.db.prepare('SELECT id, system_code, title, raw_name, size_mb FROM games_kb WHERE id = ?').get(Number(id));
+  }
+
+  /**
+   * Delete a game from games_kb.
+   * @param {number} id
+   */
+  removeGame(id) {
+    const existing = this.db.prepare('SELECT system_code FROM games_kb WHERE id = ?').get(Number(id));
+    if (!existing) return false;
+    const info = this.db.prepare('DELETE FROM games_kb WHERE id = ?').run(Number(id));
+    this.db
+      .prepare('UPDATE systems_kb SET game_count = (SELECT COUNT(*) FROM games_kb WHERE system_code = ?) WHERE system_code = ?')
+      .run(existing.system_code, existing.system_code);
+    return info.changes > 0;
+  }
+
+  /**
+   * Get PC recommendations KB JSON object.
+   */
+  getPcKb() {
+    const row = this.db.prepare("SELECT content FROM kb_docs WHERE key = 'pc_recommendations'").get();
+    if (!row?.content) return null;
+    return JSON.parse(row.content);
+  }
+
+  /**
+   * Save PC recommendations KB JSON.
+   * @param {unknown} data
+   */
+  savePcKb(data) {
+    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+    if (!parsed || typeof parsed !== 'object') {
+      throw new Error('Format JSON KB spek PC tidak valid');
+    }
+    this.db
+      .prepare("INSERT OR REPLACE INTO kb_docs (key, content) VALUES ('pc_recommendations', ?)")
+      .run(JSON.stringify(parsed, null, 2));
+    return parsed;
+  }
+
+  /**
+   * Build compact, relevant game/system/PC-spec context for a buyer's message.
+   * @param {string} userMessage
+   * @returns {string}
+   */
+  formatGameKnowledgeForPrompt(userMessage = '') {
+    const systems = this.listSystemsWithGames();
+    if (systems.length === 0) return '';
+
+    const sections = [];
+    const totalGames = systems.reduce((acc, s) => acc + s.game_count, 0);
+
+    sections.push(`Total game di database: ${totalGames} game di ${systems.length} konsol/platform:`);
+    sections.push(
+      systems
+        .map((s) => `- ${s.system_code} (${s.fullname}): ${s.game_count} game | Min spek: CPU ${s.min_cpu}, RAM ${s.min_ram}, GPU ${s.min_gpu}`)
+        .join('\n')
+    );
+
+    const tokens = extractSearchTokens(userMessage);
+    if (tokens.length > 0) {
+      const matchedMap = new Map();
+      for (const token of tokens) {
+        const bySys = this.db
+          .prepare('SELECT id, system_code, title, size_mb FROM games_kb WHERE system_code = ? LIMIT 15')
+          .all(token);
+        for (const g of bySys) matchedMap.set(g.id, g);
+
+        const byTitle = this.db
+          .prepare('SELECT id, system_code, title, size_mb FROM games_kb WHERE title LIKE ? LIMIT 15')
+          .all(`%${token}%`);
+        for (const g of byTitle) matchedMap.set(g.id, g);
+      }
+
+      const matches = [...matchedMap.values()].slice(0, 25);
+      if (matches.length > 0) {
+        sections.push('\nHasil pencarian game yang relevan dengan pertanyaan pembeli:');
+        sections.push(matches.map((g) => `- [${g.system_code}] ${g.title} (${g.size_mb} MB)`).join('\n'));
+      }
+    }
+
+    const pcDoc = this.db.prepare("SELECT content FROM kb_docs WHERE key = 'pc_recommendations'").get();
+    if (pcDoc?.content) {
+      try {
+        const kb = JSON.parse(pcDoc.content);
+        const lowerMsg = String(userMessage || '').toLowerCase();
+        const isSpecQuery = /(spek|spec|pc|laptop|ram|cpu|gpu|vga|celeron|pentium|i3|i5|i7|ryzen|gtx|rtx|lag|patah|setting|batocera|wine|windows|bezel|keluar|hotkey)/.test(lowerMsg);
+
+        if (isSpecQuery) {
+          sections.push('\nPanduan Spek PC & Rekomendasi Setting Batocera:');
+          sections.push(JSON.stringify({
+            general_rules: kb.general_rules,
+            hardware_tiers: kb.hardware_tiers,
+            windows_wine_games_kb: kb.windows_wine_games_kb,
+            troubleshooting_rules: kb.troubleshooting_rules,
+          }));
+        } else if (Array.isArray(kb.hardware_tiers)) {
+          sections.push('\nRingkasan Tier PC yang Didukung:');
+          sections.push(
+            kb.hardware_tiers
+              .map((t) => `- ${t.label}: ${t.hardware_criteria?.cpu || ''}, RAM ${t.hardware_criteria?.ram || ''}`)
+              .join('\n')
+          );
+        }
+      } catch {
+        // Ignore malformed KB JSON
+      }
+    }
+
+    return sections.join('\n');
   }
 
   close() {

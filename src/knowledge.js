@@ -53,10 +53,12 @@ export class KnowledgeLoader {
 
   /**
    * Build the full system prompt for direct WhatsApp CS interaction.
+   * @param {string} [userMessage]
    * @returns {string}
    */
-  getSystemPrompt() {
+  getSystemPrompt(userMessage = '') {
     const skillText = this.#readIfChanged(this.skillPath, 'skill');
+    const gameKnowledge = this.catalogDb ? this.catalogDb.formatGameKnowledgeForPrompt(userMessage) : '';
     const catalogSection = this.catalogDb
       ? [
           '## Katalog Produk & Stok Live (Database SQLite — Satu-satunya Sumber Kebenaran Produk)',
@@ -65,6 +67,7 @@ export class KnowledgeLoader {
           '- Jika berstatus `TERSEDIA`, cukup katakan produknya ready/masih ada. **JANGAN ungkapkan angka jumlah sisa stok ke pembeli**, KECUALI jika pembeli meminta jumlah tertentu yang melebihi sisa stok (contoh: pembeli minta 4 pcs tapi stok kita tinggal 3 pcs, baru katakan: "Untuk saat ini stok kita tinggal 3 pcs kak").',
           '- Jika pembeli minta foto/gambar produk dan di katalog tertulis `Foto: ADA`, tambahkan tag `[KIRIM_FOTO: <ID>]` (contoh: `[KIRIM_FOTO: 2]`) di baris paling akhir agar sistem otomatis mengirim foto produknya ke WhatsApp pembeli.',
           this.catalogDb.formatForPrompt(),
+          ...(gameKnowledge ? ['', '## Database Daftar Game, Konsol & Rekomendasi Spek PC', gameKnowledge] : []),
         ]
       : this.knowledgePath && fs.existsSync(this.knowledgePath)
         ? [
