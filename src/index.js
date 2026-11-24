@@ -43,6 +43,7 @@ const sessions = new SessionStore({
 
 let waStatus = 'initializing';
 let latestQr = null;
+let isWaTransitioning = false;
 /** @type {import('whatsapp-web.js').Client | null} */
 let client = null;
 
@@ -148,39 +149,46 @@ function startWaClient() {
   });
 }
 
-async function closeClientSafely(targetClient) {
+async function closeClientSafely(targetClient, wasReady = false) {
   if (!targetClient) return;
-  try {
-    await Promise.race([
-      targetClient.logout().catch(() => {}),
-      new Promise((r) => setTimeout(r, 3000)),
-    ]);
-  } catch {
-    // ignore logout error
+  if (wasReady) {
+    try {
+      await Promise.race([
+        targetClient.logout().catch(() => {}),
+        new Promise((r) => setTimeout(r, 3000)),
+      ]);
+    } catch {
+      // ignore logout error
+    }
   }
   try {
-    await targetClient.destroy().catch(() => {});
+    await Promise.race([
+      targetClient.destroy().catch(() => {}),
+      new Promise((r) => setTimeout(r, 3000)),
+    ]);
   } catch {
     // ignore destroy error
   }
   try {
+    const proc = targetClient.pupBrowser?.process?.();
     await targetClient.pupBrowser?.close?.().catch(() => {});
+    if (proc && !proc.killed) {
+      proc.kill('SIGKILL');
+    }
   } catch {
     // ignore browser close error
   }
 }
 
 function removeSavedSessions(dataPath) {
-  const targets = [path.resolve(dataPath), path.resolve('.wwebjs_cache')];
-  for (const dir of targets) {
-    if (!fs.existsSync(dir)) continue;
-    for (let i = 0; i < 5; i++) {
-      try {
-        fs.rmSync(dir, { recursive: true, force: true });
-        break;
-      } catch {
-        // Wait briefly if Windows still holds lock
-      }
+  const dir = path.resolve(dataPath);
+  if (!fs.existsSync(dir)) return;
+  for (let i = 0; i < 5; i++) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+      return;
+    } catch {
+      // Wait briefly if Windows still holds lock
     }
   }
 }
@@ -199,29 +207,35 @@ const waControl = {
     dataPath: config.wwebjsDataPath,
   }),
   logout: async () => {
+    if (isWaTransitioning) return;
+    isWaTransitioning = true;
     logger.log('[WA] Logout diminta: menghapus seluruh session tersimpan...');
+    const wasReady = waStatus === 'ready';
     waStatus = 'logging_out';
     latestQr = null;
     const prev = client;
     client = null;
-    await closeClientSafely(prev);
+    await closeClientSafely(prev, wasReady);
     setTimeout(() => {
       removeSavedSessions(config.wwebjsDataPath);
       logger.log(`[WA] Session "${config.wwebjsDataPath}" dihapus. Memulai client baru untuk QR...`);
+      isWaTransitioning = false;
       startWaClient();
-    }, 2000);
+    }, 1500);
   },
   restart: async () => {
+    if (isWaTransitioning) return;
+    isWaTransitioning = true;
     logger.log('[WA] Restart client diminta dari dashboard...');
     waStatus = 'restarting';
     latestQr = null;
     const prev = client;
     client = null;
-    if (prev) {
-      await prev.destroy().catch(() => {});
-      await prev.pupBrowser?.close?.().catch(() => {});
-    }
-    setTimeout(() => startWaClient(), 1500);
+    await closeClientSafely(prev, false);
+    setTimeout(() => {
+      isWaTransitioning = false;
+      startWaClient();
+    }, 1500);
   },
 };
 

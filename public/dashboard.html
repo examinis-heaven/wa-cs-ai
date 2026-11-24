@@ -555,10 +555,16 @@
         const details = document.getElementById('waDetails');
         const qrWrap = document.getElementById('qrWrapper');
         const userText = data.user ? `${escapeHtml(data.user.pushname || '-')} (${escapeHtml(data.user.wid || '-')})` : 'Belum terhubung';
+        const hint = (data.status === 'initializing' || data.status === 'logging_out' || data.status === 'restarting')
+          ? '<div style="color:var(--wait-text); margin-top:6px;">⏳ Sedang menyiapkan browser WhatsApp &amp; QR code (tunggu ~10–20 detik, jangan klik berulang)...</div>'
+          : (String(data.status || '').startsWith('error:')
+            ? '<div style="color:var(--out-text); margin-top:6px;">⚠️ Gagal memuat WhatsApp Web. Klik Reconnect WA untuk mencoba lagi.</div>'
+            : '');
         details.innerHTML = `
           <div>Status: <strong>${escapeHtml(data.status)}</strong></div>
           <div>Akun WA: <strong>${userText}</strong></div>
           <div>Session ID: <code>${escapeHtml(data.clientId)}</code> (${escapeHtml(data.dataPath)})</div>
+          ${hint}
         `;
         if (data.qr && window.QRCode) {
           qrWrap.style.display = 'block';
