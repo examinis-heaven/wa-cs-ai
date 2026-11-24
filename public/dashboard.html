@@ -477,7 +477,8 @@
       const panel = document.getElementById('tab-' + name);
       panel.classList.add('active');
       if (window.gsap) gsap.fromTo(panel, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.25 });
-      if (name === 'wa') loadWaStatus();
+      if (name === 'wa') startWaPolling();
+      else stopWaPolling();
       if (name === 'customers') loadCustomers();
     }
 
@@ -572,17 +573,27 @@
       }
     }
 
+    let waPollTimer = null;
+    function startWaPolling() {
+      stopWaPolling();
+      loadWaStatus();
+      waPollTimer = setInterval(loadWaStatus, 2500);
+    }
+    function stopWaPolling() {
+      if (waPollTimer) { clearInterval(waPollTimer); waPollTimer = null; }
+    }
+
     async function logoutWa() {
       if (!confirm('Logout dari akun WhatsApp saat ini? Anda perlu scan QR baru.')) return;
       await fetch('/api/wa/logout', { method: 'POST' });
-      showToast('Logout WA diproses, tunggu QR baru...');
-      setTimeout(loadWaStatus, 2500);
+      showToast('Logout WA diproses, menunggu QR baru...');
+      startWaPolling();
     }
 
     async function restartWa() {
       await fetch('/api/wa/restart', { method: 'POST' });
-      showToast('WhatsApp client di-restart');
-      setTimeout(loadWaStatus, 2500);
+      showToast('WhatsApp client di-restart...');
+      startWaPolling();
     }
 
     async function loadProducts() {

@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import 'dotenv/config';
@@ -42,18 +43,65 @@ const sessions = new SessionStore({
 
 let waStatus = 'initializing';
 let latestQr = null;
+/** @type {import('whatsapp-web.js').Client | null} */
+let client = null;
 
-const client = new Client({
-  authStrategy: new LocalAuth({
-    clientId: config.wwebjsClientId,
-    dataPath: config.wwebjsDataPath,
-  }),
-  puppeteer: {
-    headless: config.wwebjsHeadless,
-    ...(config.wwebjsExecutablePath ? { executablePath: config.wwebjsExecutablePath } : {}),
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  },
-});
+function buildWaClient() {
+  const instance = new Client({
+    authStrategy: new LocalAuth({
+      clientId: config.wwebjsClientId,
+      dataPath: config.wwebjsDataPath,
+    }),
+    puppeteer: {
+      headless: config.wwebjsHeadless,
+      ...(config.wwebjsExecutablePath ? { executablePath: config.wwebjsExecutablePath } : {}),
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    },
+  });
+
+  instance.on('qr', (qr) => {
+    waStatus = 'waiting_qr';
+    latestQr = qr;
+    logger.log('[WA] QR code baru dibuat. Silakan scan dengan WhatsApp di HP (Perangkat Tertaut) atau buka Dashboard.');
+    qrcode.generate(qr, { small: true });
+  });
+
+  instance.on('authenticated', () => {
+    waStatus = 'authenticated';
+    latestQr = null;
+    logger.log(
+      `[WA] Berhasil login! Session tersimpan di "${config.wwebjsDataPath}" (clientId: ${config.wwebjsClientId}).`
+    );
+  });
+
+  instance.on('auth_failure', (msg) => {
+    waStatus = 'auth_failure';
+    latestQr = null;
+    logger.error('[WA] Autentikasi gagal:', msg);
+  });
+
+  instance.on('ready', () => {
+    waStatus = 'ready';
+    latestQr = null;
+    logger.log('[WA] WhatsApp Client siap menerima pesan CS!');
+  });
+
+  instance.on('change_state', (state) => {
+    logger.log(`[WA] State berubah: ${state}`);
+  });
+
+  instance.on('disconnected', (reason) => {
+    waStatus = `disconnected:${reason}`;
+    latestQr = null;
+    logger.warn('[WA] Koneksi WhatsApp terputus:', reason);
+  });
+
+  instance.on('message', async (message) => {
+    await bot.handleIncomingMessage(message);
+  });
+
+  return instance;
+}
 
 const bot = new CustomerServiceBot({
   config,
@@ -61,14 +109,20 @@ const bot = new CustomerServiceBot({
   llm,
   sessions,
   catalogDb,
-  sendMessage: (chatId, text) => client.sendMessage(chatId, text, { sendSeen: false }),
-  sendLocation: (chatId, loc) =>
-    client.sendMessage(
+  sendMessage: (chatId, text) => {
+    if (!client) throw new Error('WhatsApp client belum siap');
+    return client.sendMessage(chatId, text, { sendSeen: false });
+  },
+  sendLocation: (chatId, loc) => {
+    if (!client) throw new Error('WhatsApp client belum siap');
+    return client.sendMessage(
       chatId,
       new Location(loc.lat, loc.lng, { name: loc.name }),
       { sendSeen: false }
-    ),
+    );
+  },
   sendImage: async (chatId, product) => {
+    if (!client) throw new Error('WhatsApp client belum siap');
     const caption = product.variant ? `${product.name} (${product.variant})` : product.name;
     let media;
     if (product.image_url.startsWith('/uploads/')) {
@@ -82,52 +136,21 @@ const bot = new CustomerServiceBot({
   logger,
 });
 
-client.on('qr', (qr) => {
-  waStatus = 'waiting_qr';
-  latestQr = qr;
-  logger.log('[WA] QR code baru dibuat. Silakan scan dengan WhatsApp di HP (Perangkat Tertaut) atau buka Dashboard.');
-  qrcode.generate(qr, { small: true });
-});
-
-client.on('authenticated', () => {
-  waStatus = 'authenticated';
+function startWaClient() {
+  waStatus = 'initializing';
   latestQr = null;
-  logger.log(
-    `[WA] Berhasil login! Session tersimpan di "${config.wwebjsDataPath}" (clientId: ${config.wwebjsClientId}).`
-  );
-});
-
-client.on('auth_failure', (msg) => {
-  waStatus = 'auth_failure';
-  latestQr = null;
-  logger.error('[WA] Autentikasi gagal:', msg);
-});
-
-client.on('ready', () => {
-  waStatus = 'ready';
-  latestQr = null;
-  logger.log('[WA] WhatsApp Client siap menerima pesan CS!');
-});
-
-client.on('change_state', (state) => {
-  logger.log(`[WA] State berubah: ${state}`);
-});
-
-client.on('disconnected', (reason) => {
-  waStatus = `disconnected:${reason}`;
-  latestQr = null;
-  logger.warn('[WA] Koneksi WhatsApp terputus:', reason);
-});
-
-client.on('message', async (message) => {
-  await bot.handleIncomingMessage(message);
-});
+  client = buildWaClient();
+  logger.log('[WA] Memulai whatsapp-web.js (memuat session tersimpan atau menyiapkan QR)...');
+  client.initialize().catch((err) => {
+    logger.error('[WA] Gagal menginisialisasi WhatsApp client:', err);
+  });
+}
 
 const waControl = {
   getInfo: () => ({
     status: waStatus,
     qr: latestQr,
-    user: client.info
+    user: client?.info
       ? {
           pushname: client.info.pushname || '',
           wid: client.info.wid?.user || '',
@@ -140,18 +163,28 @@ const waControl = {
     logger.log('[WA] Logout diminta dari dashboard...');
     waStatus = 'logging_out';
     latestQr = null;
-    await client.logout().catch(() => {});
-    await client.destroy().catch(() => {});
-    waStatus = 'initializing';
-    client.initialize().catch((err) => logger.error('[WA] Gagal re-init setelah logout:', err));
+    const prev = client;
+    client = null;
+    if (prev) {
+      await prev.logout().catch(() => {});
+      await prev.destroy().catch(() => {});
+    }
+    const sessionFolder = path.resolve(config.wwebjsDataPath, `session-${config.wwebjsClientId}`);
+    if (fs.existsSync(sessionFolder)) {
+      fs.rmSync(sessionFolder, { recursive: true, force: true });
+    }
+    setTimeout(() => startWaClient(), 800);
   },
   restart: async () => {
     logger.log('[WA] Restart client diminta dari dashboard...');
     waStatus = 'restarting';
     latestQr = null;
-    await client.destroy().catch(() => {});
-    waStatus = 'initializing';
-    client.initialize().catch((err) => logger.error('[WA] Gagal re-init saat restart:', err));
+    const prev = client;
+    client = null;
+    if (prev) {
+      await prev.destroy().catch(() => {});
+    }
+    setTimeout(() => startWaClient(), 800);
   },
 };
 
@@ -185,10 +218,7 @@ app.listen(config.port, '0.0.0.0', () => {
   );
 });
 
-logger.log('[WA] Memulai whatsapp-web.js (memuat session tersimpan atau menyiapkan QR)...');
-client.initialize().catch((err) => {
-  logger.error('[WA] Gagal menginisialisasi WhatsApp client:', err);
-});
+startWaClient();
 
 process.on('uncaughtException', (err) => {
   logger.error('[SYS] Uncaught Exception:', err);
@@ -200,7 +230,9 @@ process.on('unhandledRejection', (reason) => {
 
 const shutdown = async () => {
   logger.log('[SYS] Menutup WhatsApp client...');
-  await client.destroy().catch((err) => logger.error('[SYS] Error saat destroy client:', err));
+  if (client) {
+    await client.destroy().catch((err) => logger.error('[SYS] Error saat destroy client:', err));
+  }
   process.exit(0);
 };
 
