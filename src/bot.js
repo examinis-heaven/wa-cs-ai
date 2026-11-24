@@ -310,6 +310,19 @@ export class CustomerServiceBot {
       `[CS] Pesan masuk dari ${displayPhone || chatId}${customerName ? ` (${customerName})` : ''}${bubbleInfo}: ${text || '<media tanpa teks>'}`
     );
 
+    if (this.catalogDb) {
+      this.catalogDb.upsertCustomerContact?.({
+        chat_id: chatId,
+        customer_name: customerName,
+        customer_phone: displayPhone || customerPhone,
+        last_message: text.slice(0, 200),
+      });
+      if (this.catalogDb.isCustomerAiEnabled?.(chatId) === false) {
+        this.logger.log(`[CS] AI sedang OFF untuk ${displayPhone || chatId}, pesan dilewati.`);
+        return;
+      }
+    }
+
     try {
       if (typeof rawMessage.getChat === 'function') {
         chat = await rawMessage.getChat().catch(() => null);

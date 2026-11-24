@@ -881,3 +881,65 @@ test('extractLaptopQuery & parseBingSnippets detect laptop model and inject spec
     catalogDb.close();
   }
 });
+
+test('Per-customer AI ON/OFF toggle pauses AI replies when OFF and resumes when ON', async () => {
+  const catalogDb = new CatalogDb(':memory:', { seedIfEmpty: true });
+  let llmCalls = 0;
+  const sent = [];
+  const mockRouter = await startMockServer(async (_req, res) => {
+    llmCalls++;
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ choices: [{ message: { content: 'Halo kak ready!' } }] }));
+  });
+
+  try {
+    const config = createConfig({ routerBaseUrl: `${mockRouter.url}/v1`, routerModel: 'CS', messageDebounceMs: 0 });
+    const bot = new CustomerServiceBot({
+      config,
+      knowledge: new KnowledgeLoader(config.skillPath, null, catalogDb),
+      llm: new RouterLLMClient({ baseUrl: config.routerBaseUrl, apiKey: '', model: 'CS' }),
+      sessions: new SessionStore(),
+      catalogDb,
+      sendMessage: async (chatId, text) => sent.push({ chatId, text }),
+      logger: { log() {}, warn() {}, error() {} },
+    });
+
+    // 1. Default ON -> replies
+    await bot.handleIncomingMessage({
+      id: { _serialized: 'ai-1' },
+      from: '628777@c.us',
+      fromMe: false,
+      body: 'Halo kak',
+      async getContact() { return { number: '628777', pushname: 'Sari' }; },
+    });
+    assert.equal(llmCalls, 1);
+    assert.equal(sent.length, 1);
+    assert.equal(catalogDb.listCustomers().length, 1);
+    assert.equal(catalogDb.listCustomers()[0].customer_name, 'Sari');
+
+    // 2. Toggle OFF -> skips LLM and skips sending reply
+    catalogDb.setCustomerAiEnabled('628777@c.us', false);
+    await bot.handleIncomingMessage({
+      id: { _serialized: 'ai-2' },
+      from: '628777@c.us',
+      fromMe: false,
+      body: 'Masih ada?',
+    });
+    assert.equal(llmCalls, 1);
+    assert.equal(sent.length, 1);
+
+    // 3. Toggle back ON -> replies again
+    catalogDb.setCustomerAiEnabled('628777@c.us', true);
+    await bot.handleIncomingMessage({
+      id: { _serialized: 'ai-3' },
+      from: '628777@c.us',
+      fromMe: false,
+      body: 'Halo lagi kak',
+    });
+    assert.equal(llmCalls, 2);
+    assert.equal(sent.length, 2);
+  } finally {
+    await mockRouter.close();
+    catalogDb.close();
+  }
+});

@@ -247,6 +247,26 @@ export function createTestServer({ config, bot, llm, sessions, catalogDb, getWaS
     return res.json({ ok: true });
   });
 
+  // --- Per-Customer AI ON/OFF ---
+  app.get('/api/customers', (_req, res) => {
+    if (!catalogDb) return res.status(503).json({ ok: false, error: 'Catalog database tidak aktif' });
+    return res.json({ ok: true, customers: catalogDb.listCustomers() });
+  });
+
+  app.patch('/api/customers/:chatId/ai', (req, res) => {
+    if (!catalogDb) return res.status(503).json({ ok: false, error: 'Catalog database tidak aktif' });
+    if (req.body?.enabled === undefined) {
+      return res.status(400).json({ ok: false, error: 'Field "enabled" wajib diisi (true/false)' });
+    }
+    try {
+      const chatId = decodeURIComponent(req.params.chatId);
+      const customer = catalogDb.setCustomerAiEnabled(chatId, Boolean(req.body.enabled));
+      return res.json({ ok: true, customer });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
   // --- WhatsApp Login & Session Control ---
   app.get('/api/wa/status', (_req, res) => {
     if (waControl && typeof waControl.getInfo === 'function') {

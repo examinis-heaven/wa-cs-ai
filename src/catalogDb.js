@@ -177,6 +177,15 @@ export class CatalogDb {
         source TEXT NOT NULL DEFAULT 'web',
         updated_at TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS customer_settings (
+        chat_id TEXT PRIMARY KEY,
+        customer_name TEXT NOT NULL DEFAULT '',
+        customer_phone TEXT NOT NULL DEFAULT '',
+        ai_enabled INTEGER NOT NULL DEFAULT 1,
+        last_message TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL
+      );
     `);
 
     // Migrate existing catalog.db safely if image_url column does not exist yet
@@ -722,6 +731,78 @@ export class CatalogDb {
   removeLaptopSpec(id) {
     const info = this.db.prepare('DELETE FROM laptop_specs_kb WHERE id = ?').run(Number(id));
     return info.changes > 0;
+  }
+
+  // --- Per-Customer AI ON/OFF Settings ---
+
+  /**
+   * Record or update a customer's contact info & last message without overwriting ai_enabled.
+   * @param {{ chat_id: string, customer_name?: string, customer_phone?: string, last_message?: string }} input
+   */
+  upsertCustomerContact({ chat_id, customer_name = '', customer_phone = '', last_message = '' }) {
+    const chatId = String(chat_id || '').trim();
+    if (!chatId) return null;
+    const now = new Date().toISOString();
+
+    this.db
+      .prepare(
+        `INSERT INTO customer_settings (chat_id, customer_name, customer_phone, ai_enabled, last_message, updated_at)
+         VALUES (?, ?, ?, 1, ?, ?)
+         ON CONFLICT(chat_id) DO UPDATE SET
+           customer_name = CASE WHEN excluded.customer_name != '' THEN excluded.customer_name ELSE customer_settings.customer_name END,
+           customer_phone = CASE WHEN excluded.customer_phone != '' THEN excluded.customer_phone ELSE customer_settings.customer_phone END,
+           last_message = CASE WHEN excluded.last_message != '' THEN excluded.last_message ELSE customer_settings.last_message END,
+           updated_at = excluded.updated_at`
+      )
+      .run(chatId, String(customer_name || '').trim(), String(customer_phone || '').trim(), String(last_message || '').trim(), now);
+
+    return this.db.prepare('SELECT * FROM customer_settings WHERE chat_id = ?').get(chatId);
+  }
+
+  /**
+   * Check whether AI auto-reply is enabled for a given chatId (defaults to true).
+   * @param {string} chatId
+   * @returns {boolean}
+   */
+  isCustomerAiEnabled(chatId) {
+    const row = this.db
+      .prepare('SELECT ai_enabled FROM customer_settings WHERE chat_id = ?')
+      .get(String(chatId || '').trim());
+    if (!row) return true;
+    return Number(row.ai_enabled) !== 0;
+  }
+
+  /**
+   * Toggle AI auto-reply ON (true) or OFF (false) for a customer.
+   * @param {string} chatId
+   * @param {boolean} enabled
+   */
+  setCustomerAiEnabled(chatId, enabled) {
+    const id = String(chatId || '').trim();
+    if (!id) throw new Error('chatId wajib diisi');
+    const flag = enabled ? 1 : 0;
+    const now = new Date().toISOString();
+
+    this.db
+      .prepare(
+        `INSERT INTO customer_settings (chat_id, ai_enabled, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(chat_id) DO UPDATE SET
+           ai_enabled = excluded.ai_enabled,
+           updated_at = excluded.updated_at`
+      )
+      .run(id, flag, now);
+
+    return this.db.prepare('SELECT * FROM customer_settings WHERE chat_id = ?').get(id);
+  }
+
+  /**
+   * List all tracked customers ordered by most recently active.
+   */
+  listCustomers() {
+    return this.db
+      .prepare('SELECT chat_id, customer_name, customer_phone, ai_enabled, last_message, updated_at FROM customer_settings ORDER BY updated_at DESC')
+      .all();
   }
 
   /**
