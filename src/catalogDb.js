@@ -779,13 +779,13 @@ export class CatalogDb {
             `SELECT g.title, g.size_mb, s.min_cpu, s.min_ram, s.min_gpu
              FROM games_kb g
              LEFT JOIN systems_kb s ON g.system_code = s.system_code
-             WHERE g.system_code IN ('ps2', 'psp', 'ps1', 'gamecube', 'wii', 'snes', 'n64', 'gba', 'megadrive', 'ps3')
-             ORDER BY g.id ASC
-             LIMIT 25`
+             WHERE g.system_code IN ('psx', 'ps1', 'ps2', 'ps3', 'ps4')
+             ORDER BY CASE g.system_code WHEN 'ps4' THEN 1 WHEN 'ps3' THEN 2 WHEN 'ps2' THEN 3 ELSE 4 END, g.id ASC
+             LIMIT 30`
           )
           .all();
         if (sampleGames.length > 0) {
-          sections.push('\nContoh daftar game di paket Plug and Play (pilih 5 yang paling populer dan sesuai spek laptop pembeli):');
+          sections.push('\nDaftar game PS1-PS4 di paket Plug and Play (pilih 5 yang paling populer dan sesuai spek laptop pembeli, tanpa Nintendo):');
           sections.push(
             sampleGames
               .map((g) => `- ${g.title} | Min spek: CPU ${g.min_cpu || '-'}, RAM ${g.min_ram || '-'}, GPU ${g.min_gpu || '-'}`)
