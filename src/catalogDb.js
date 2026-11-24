@@ -773,6 +773,25 @@ export class CatalogDb {
             })
             .join('\n')
         );
+      } else if (/(list|daftar|rekomendasi|game apa|apa aja)/i.test(String(userMessage || ''))) {
+        const sampleGames = this.db
+          .prepare(
+            `SELECT g.title, g.size_mb, s.min_cpu, s.min_ram, s.min_gpu
+             FROM games_kb g
+             LEFT JOIN systems_kb s ON g.system_code = s.system_code
+             WHERE g.system_code IN ('ps2', 'psp', 'ps1', 'gamecube', 'wii', 'snes', 'n64', 'gba', 'megadrive', 'ps3')
+             ORDER BY g.id ASC
+             LIMIT 25`
+          )
+          .all();
+        if (sampleGames.length > 0) {
+          sections.push('\nContoh daftar game di paket Plug and Play (pilih 5 yang paling populer dan sesuai spek laptop pembeli):');
+          sections.push(
+            sampleGames
+              .map((g) => `- ${g.title} | Min spek: CPU ${g.min_cpu || '-'}, RAM ${g.min_ram || '-'}, GPU ${g.min_gpu || '-'}`)
+              .join('\n')
+          );
+        }
       }
     }
 
